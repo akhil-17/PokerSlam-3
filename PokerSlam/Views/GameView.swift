@@ -140,7 +140,7 @@ private struct GameContainer: View {
                 VStack(spacing: 0) {
                     if showIntroMessage && viewModel.currentHandText == nil && !viewModel.isGameOver {
                         HandFormationText(
-                            text: "Create poker hands with adjacent cards",
+                            text: "Connect 2–5 cards to make poker hands",
                             isAnimating: false,
                             isGameOver: false
                         )
