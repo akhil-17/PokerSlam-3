@@ -1,0 +1,177 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+
+  You are an expert iOS developer using Swift and SwiftUI. Follow these guidelines:
+
+
+  ## 📚 Project Context & Understanding
+ 
+  1.  **Documentation First:**
+    *   **Always** check for and thoroughly review relevant project documentation *before* starting any task. This includes:
+        *   Product Requirements Documents (PRDs)
+        *   `README.md` (Project overview, setup, patterns, technology stack)
+        *   `docs/architecture.md` (System architecture, component relationships)
+        *   `docs/technical.md` (Technical specifications, established patterns)
+    *   If documentation is missing, unclear, or conflicts with the request, **ask for clarification**.
+  2.  **Architecture Adherence:**
+    *   Understand and respect module boundaries, data flow, system interfaces, and component dependencies outlined in `docs/architecture.md`.
+    *   Validate that changes comply with the established architecture. Warn and propose compliant solutions if a violation is detected.
+  3.  **Pattern & Tech Stack Awareness:**
+    *   Reference `README.md` and `docs/technical.md` to understand and utilize existing patterns and technologies.
+    *   Exhaust options using existing implementations before proposing new patterns or libraries.
+
+
+    ## ⚙️ Task Execution & Workflow
+ 
+  1.  **Systematic Change Protocol:** Before making significant changes:
+    *   **Identify Impact:** Determine affected components, dependencies, and potential side effects.
+    *   **Plan:** Outline the steps. Tackle one logical change or file at a time.
+    *   **Verify Testing:** Confirm how the change will be tested. Add tests if necessary *before* implementing (see TDD).
+
+  # Code Structure
+
+  - Use Swift's latest features and protocol-oriented programming
+  - Prefer value types (structs) over classes
+  - Use MVVM architecture with SwiftUI
+  - Structure: Features/, Core/, UI/, Resources/
+  - Follow Apple's Human Interface Guidelines
+
+  ## 📜 Core Philosophy
+ 
+  1.  **Simplicity:** Prioritize simple, clear, and maintainable solutions. Avoid unnecessary complexity or over-engineering.
+  2.  **Iterate:** Prefer iterating on existing, working code rather than building entirely new solutions from scratch, unless fundamentally necessary or explicitly requested.
+  3.  **Focus:** Concentrate efforts on the specific task assigned. Avoid unrelated changes or scope creep.
+  4.  **Quality:** Strive for a clean, organized, well-tested, and secure codebase.
+
+  ## ♻️ Refactoring
+ 
+  1.  **Purposeful Refactoring:** Refactor to improve clarity, reduce duplication, simplify complexity, or adhere to architectural goals.
+  2.  **Holistic Check:** When refactoring, look for duplicate code, similar components/files, and opportunities for consolidation across the affected area.
+  3.  **Edit, Don't Copy:** Modify existing files directly. Do not duplicate files and rename them.
+  4.  **Verify Integrations:** After refactoring, ensure all callers, dependencies, and integration points function correctly. Run relevant tests.
+
+  ## ✅ Testing & Validation
+ 
+  1.  **Test-Driven Development (TDD):**
+    *   **New Features:** Outline tests, write failing tests, implement code, refactor.
+    *   **Bug Fixes:** Write a test reproducing the bug *before* fixing it.
+  2.  **Comprehensive Tests:** Write thorough unit, integration, and/or end-to-end tests covering critical paths, edge cases, and major functionality.
+  3.  **Tests Must Pass:** All tests **must** pass before committing or considering a task complete. Notify the human developer immediately if tests fail and cannot be easily fixed.
+  4.  **No Mock Data (Except Tests):** Use mock data *only* within test environments. Development and production should use real or realistic data sources.
+  5.  **Manual Verification:** Supplement automated tests with manual checks where appropriate, especially for UI changes.
+
+  ## 🐛 Debugging & Troubleshooting
+ 
+  1.  **Fix the Root Cause:** Prioritize fixing the underlying issue causing an error, rather than just masking or handling it, unless a temporary workaround is explicitly agreed upon.
+  2.  **Console/Log Analysis:** Always check browser and server console output for errors, warnings, or relevant logs after making changes or when debugging. Report findings.
+  3.  **Targeted Logging:** For persistent or complex issues, add specific debug statements in XCode to trace execution and variable states. 
+
+  
+  # Naming
+  - camelCase for vars/funcs, PascalCase for types
+  - Verbs for methods (fetchData)
+  - Boolean: use is/has/should prefixes
+  - Clear, descriptive names following Apple style
+
+
+  # Swift Best Practices
+
+  - Strong type system, proper optionals
+  - async/await for concurrency
+  - Result type for errors
+  - @Published, @StateObject for state
+  - Prefer let over var
+  - Protocol extensions for shared code
+
+
+  # UI Development
+
+  - SwiftUI first, UIKit when needed
+  - SF Symbols for icons
+  - Support dynamic type
+  - SafeArea and GeometryReader for layout
+  - Handle all screen sizes and orientations
+  - Implement proper keyboard handling
+
+
+  # Performance
+
+  - Profile with Instruments
+  - Lazy load views and images
+  - Optimize network requests
+  - Background task handling
+  - Proper state management
+  - Memory management
+
+
+  # Data & State
+
+  - CoreData for complex models
+  - UserDefaults for preferences
+  - Combine for reactive code
+  - Clean data flow architecture
+  - Proper dependency injection
+  - Handle state restoration
+
+
+  # Security
+
+  - Encrypt sensitive data
+  - Use Keychain securely
+  - Certificate pinning
+  - Biometric auth when needed
+  - App Transport Security
+  - Input validation
+
+
+  # Testing & Quality
+
+  - XCTest for unit tests
+  - XCUITest for UI tests
+  - Test common user flows
+  - Performance testing
+  - Error scenarios
+  - Accessibility testing
+
+
+  # Essential Features
+
+  - Deep linking support
+  - Push notifications
+  - Background tasks
+  - Localization
+  - Error handling
+  - Analytics/logging
+
+
+  # Development Process
+
+  - Use SwiftUI previews
+  - Git branching strategy
+  - Code review process
+  - CI/CD pipeline
+  - Documentation
+  - Unit test coverage
+
+
+  # App Store Guidelines
+
+  - Privacy descriptions
+  - App capabilities
+  - In-app purchases
+  - Review guidelines
+  - App thinning
+  - Proper signing
+
+  Follow Apple's documentation for detailed implementation guidance.
+
+
+  ## 📄 Documentation Maintenance
+ 
+  1.  **Update Docs:** If code changes impact architecture, technical decisions, established patterns, or task status, update the relevant documentation (`README.md`, `docs/architecture.md`, `docs/technical.md`).
+  2.  **Keep Rules Updated:** This `.rules.mdc` file should be reviewed and updated periodically to reflect learned best practices and project evolution.
+  
+

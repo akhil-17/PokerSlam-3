@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>UIAppFonts</key>
+	<array>
+		<string>SF-Compact-Display-Semibold.otf</string>
+		<string>SF-Compact-Display-Medium.otf</string>
+		<string>SF-Compact-Display-Regular.otf</string>
+		<string>SF-Compact-Rounded-Medium.otf</string>
+		<string>SF-Compact-Rounded-Regular.otf</string>
+		<string>SF-Compact-Rounded-Semibold.otf</string>
+		<string>SF-Compact-Text-Medium.otf</string>
+		<string>SF-Compact-Text-Regular.otf</string>
+		<string>SF-Compact-Text-Semibold.otf</string>
+		<string>SF-Compact.ttf</string>
+		<string>SF-Compact-Italic.ttf</string>
+		<string>SF-Compact-Text-MediumItalic.otf</string>
+		<string>SF-Compact-Text-RegularItalic.otf</string>
+		<string>SF-Compact-Text-SemiboldItalic.otf</string>
+	</array>
+</dict>
+</plist>
