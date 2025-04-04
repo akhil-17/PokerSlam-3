@@ -152,12 +152,16 @@ private struct GameContainer: View {
                         )
                     }
                     
-                    CardGridView(viewModel: viewModel)
-                        .onChange(of: viewModel.selectedCards.count) { oldValue, newValue in
-                            if newValue > 0 {
-                                showIntroMessage = false
+                    // Fixed height container for the card grid
+                    ZStack {
+                        CardGridView(viewModel: viewModel)
+                            .onChange(of: viewModel.selectedCards.count) { oldValue, newValue in
+                                if newValue > 0 {
+                                    showIntroMessage = false
+                                }
                             }
-                        }
+                    }
+                    .frame(height: 550) // Fixed height for the card grid container
                     
                     // Fixed height container for bottom buttons
                     ZStack {
@@ -209,50 +213,99 @@ private struct GameContainer: View {
 
 private struct CardGridView: View {
     @ObservedObject var viewModel: GameViewModel
+    @State private var cardFrames: [UUID: CGRect] = [:]
     
     var body: some View {
-        LazyVStack(spacing: 8) {
-            ForEach(0..<5, id: \.self) { row in
-                LazyHStack(spacing: 8) {
-                    ForEach(0..<5, id: \.self) { col in
-                        if let cardPosition = viewModel.cardPositions.first(where: { $0.currentRow == row && $0.currentCol == col }) {
-                            CardView(
-                                card: cardPosition.card,
-                                isSelected: viewModel.selectedCards.contains(cardPosition.card),
-                                isEligible: viewModel.eligibleCards.contains(cardPosition.card),
-                                isInteractive: viewModel.areCardsInteractive,
-                                onTap: { 
-                                    Task { @MainActor in
-                                        viewModel.selectCard(cardPosition.card)
+        ZStack {
+            // Connection lines layer
+            ConnectionLinesLayer(
+                viewModel: viewModel,
+                cardFrames: cardFrames,
+                isAnimated: !viewModel.isAnimating
+            )
+            
+            // Card grid
+            LazyVStack(spacing: 8) {
+                ForEach(0..<5, id: \.self) { row in
+                    LazyHStack(spacing: 8) {
+                        ForEach(0..<5, id: \.self) { col in
+                            if let cardPosition = viewModel.cardPositions.first(where: { $0.currentRow == row && $0.currentCol == col }) {
+                                CardView(
+                                    card: cardPosition.card,
+                                    isSelected: viewModel.selectedCards.contains(cardPosition.card),
+                                    isEligible: viewModel.eligibleCards.contains(cardPosition.card),
+                                    isInteractive: viewModel.areCardsInteractive,
+                                    onTap: { 
+                                        Task { @MainActor in
+                                            viewModel.selectCard(cardPosition.card)
+                                        }
                                     }
-                                }
-                            )
-                            .offset(
-                                x: CGFloat(cardPosition.currentCol - cardPosition.targetCol) * 68,
-                                y: CGFloat(cardPosition.currentRow - cardPosition.targetRow) * 102
-                            )
-                            .animation(.spring(response: 0.3, dampingFraction: 0.7), value: cardPosition.targetRow)
-                            .animation(.spring(response: 0.3, dampingFraction: 0.7), value: cardPosition.targetCol)
-                            .transition(.opacity.combined(with: .scale))
-                        } else {
-                            // Empty space
-                            Color.clear
-                                .frame(width: 64, height: 94)
+                                )
+                                .background(
+                                    GeometryReader { geometry in
+                                        Color.clear.onAppear {
+                                            // Calculate the offset for the card
+                                            let offsetX = CGFloat(cardPosition.currentCol - cardPosition.targetCol) * 68
+                                            let offsetY = CGFloat(cardPosition.currentRow - cardPosition.targetRow) * 102
+                                            
+                                            // Create a frame that includes the offset
+                                            let frame = geometry.frame(in: .named("cardGrid"))
+                                            let adjustedFrame = CGRect(
+                                                x: frame.minX + offsetX,
+                                                y: frame.minY + offsetY,
+                                                width: frame.width,
+                                                height: frame.height
+                                            )
+                                            
+                                            // Store the adjusted frame for connection lines
+                                            cardFrames[cardPosition.card.id] = adjustedFrame
+                                        }
+                                        .onChange(of: geometry.frame(in: .named("cardGrid"))) { oldFrame, newFrame in
+                                            // Calculate the offset for the card
+                                            let offsetX = CGFloat(cardPosition.currentCol - cardPosition.targetCol) * 68
+                                            let offsetY = CGFloat(cardPosition.currentRow - cardPosition.targetRow) * 102
+                                            
+                                            // Create a frame that includes the offset
+                                            let adjustedFrame = CGRect(
+                                                x: newFrame.minX + offsetX,
+                                                y: newFrame.minY + offsetY,
+                                                width: newFrame.width,
+                                                height: newFrame.height
+                                            )
+                                            
+                                            // Update the card frame when it changes
+                                            cardFrames[cardPosition.card.id] = adjustedFrame
+                                        }
+                                    }
+                                )
+                                .offset(
+                                    x: CGFloat(cardPosition.currentCol - cardPosition.targetCol) * 68,
+                                    y: CGFloat(cardPosition.currentRow - cardPosition.targetRow) * 102
+                                )
+                                .animation(.spring(response: 0.3, dampingFraction: 0.7), value: cardPosition.targetRow)
+                                .animation(.spring(response: 0.3, dampingFraction: 0.7), value: cardPosition.targetCol)
+                                .transition(.opacity.combined(with: .scale))
+                            } else {
+                                // Empty space
+                                Color.clear
+                                    .frame(width: 64, height: 94)
+                            }
                         }
                     }
-                }
-                .frame(height: 94)
-            }
-        }
-        .padding()
-        .contentShape(Rectangle())
-        .onTapGesture {
-            if !viewModel.selectedCards.isEmpty && viewModel.areCardsInteractive {
-                Task { @MainActor in
-                    viewModel.unselectAllCards()
+                    .frame(height: 94)
                 }
             }
+            .padding()
+            .contentShape(Rectangle())
+            .onTapGesture {
+                if !viewModel.selectedCards.isEmpty && viewModel.areCardsInteractive {
+                    Task { @MainActor in
+                        viewModel.unselectAllCards()
+                    }
+                }
+            }
         }
+        .coordinateSpace(name: "cardGrid")
     }
 }
 

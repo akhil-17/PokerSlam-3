@@ -61,6 +61,10 @@ final class GameViewModel: ObservableObject {
     @Published private(set) var isAnimating = false
     @Published private(set) var currentHandText: String?
     @Published private(set) var isAnimatingHandText = false
+    @Published private(set) var connections: [Connection] = []
+    
+    // Track the order in which cards were selected
+    private var selectionOrder: [Card] = []
     
     private var deck: [Card] = []
     private let selectionFeedback = UISelectionFeedbackGenerator()
@@ -127,23 +131,29 @@ final class GameViewModel: ObservableObject {
             if selectedCards.count == 1 {
                 selectedCards.remove(card)
                 selectedCardPositions.removeAll()
+                selectionOrder.removeAll()
                 deselectionFeedback.impactOccurred()
             } else {
                 // If multiple cards are selected, deselect all
                 selectedCards.removeAll()
                 selectedCardPositions.removeAll()
+                selectionOrder.removeAll()
                 deselectionFeedback.impactOccurred()
             }
             updateEligibleCards()
             updateCurrentHandText()
+            updateConnections()
         } else if isCardEligibleForSelection(card) && selectedCards.count < 5 {
             selectedCards.insert(card)
             if let position = findCardPosition(card) {
                 selectedCardPositions.append(position)
             }
+            // Add the card to the selection order
+            selectionOrder.append(card)
             selectionFeedback.selectionChanged()
             updateEligibleCards()
             updateCurrentHandText()
+            updateConnections()
         } else if !selectedCards.isEmpty {
             // If tapping an ineligible card with cards selected, unselect all
             unselectAllCards()
@@ -157,9 +167,11 @@ final class GameViewModel: ObservableObject {
     func unselectAllCards() {
         selectedCards.removeAll()
         selectedCardPositions.removeAll()
+        selectionOrder.removeAll()
         currentHandText = nil
         deselectionFeedback.impactOccurred()
         updateEligibleCards()
+        updateConnections()
     }
     
     private func isCardEligibleForSelection(_ card: Card) -> Bool {
@@ -210,6 +222,11 @@ final class GameViewModel: ObservableObject {
     private func updateEligibleCards() {
         eligibleCards.removeAll()
         
+        // If 5 cards are already selected, no other cards should be eligible
+        if selectedCards.count >= 5 {
+            return
+        }
+        
         if selectedCards.isEmpty {
             // If no cards are selected, all cards are eligible
             for position in cardPositions {
@@ -248,6 +265,206 @@ final class GameViewModel: ObservableObject {
         }
     }
     
+    /// Updates the connections between selected cards
+    private func updateConnections() {
+        connections.removeAll()
+        
+        // Create connections between consecutive selected cards based on selection order
+        guard selectionOrder.count >= 2 else { return }
+        
+        // First, create a map of card positions for quick lookup
+        var cardPositionMap: [UUID: (row: Int, col: Int)] = [:]
+        for position in cardPositions {
+            cardPositionMap[position.card.id] = (position.currentRow, position.currentCol)
+        }
+        
+        // Create a set of all selected card IDs for quick lookup
+        let selectedCardIds = Set(selectedCards.map { $0.id })
+        
+        // For each card in the selection order, find the best adjacent card to connect to
+        for i in 0..<(selectionOrder.count - 1) {
+            let fromCard = selectionOrder[i]
+            let toCard = selectionOrder[i + 1]
+            
+            // Skip if we don't have position information for either card
+            guard let fromPos = cardPositionMap[fromCard.id],
+                  let toPos = cardPositionMap[toCard.id] else {
+                continue
+            }
+            
+            // Check if the cards are directly adjacent
+            if isAdjacent(position1: fromPos, position2: toPos) {
+                // If adjacent, create a direct connection
+                let (fromAnchor, toAnchor) = determineAnchorPoints(
+                    from: fromPos,
+                    to: toPos
+                )
+                
+                connections.append(Connection(
+                    fromCard: fromCard,
+                    toCard: toCard,
+                    fromPosition: fromAnchor,
+                    toPosition: toAnchor
+                ))
+            } else {
+                // If not adjacent, find the best adjacent card to connect to
+                if let bestCard = findBestAdjacentCard(
+                    from: fromCard,
+                    to: toCard,
+                    cardPositionMap: cardPositionMap,
+                    selectedCardIds: selectedCardIds
+                ) {
+                    if let bestPos = cardPositionMap[bestCard.id] {
+                        let (fromAnchor, toAnchor) = determineAnchorPoints(
+                            from: fromPos,
+                            to: bestPos
+                        )
+                        
+                        connections.append(Connection(
+                            fromCard: fromCard,
+                            toCard: bestCard,
+                            fromPosition: fromAnchor,
+                            toPosition: toAnchor
+                        ))
+                    }
+                }
+            }
+        }
+        
+        // Ensure all selected cards are connected to at least one other card
+        ensureAllCardsConnected(
+            cardPositionMap: cardPositionMap,
+            selectedCardIds: selectedCardIds
+        )
+    }
+    
+    /// Finds the best adjacent card to connect to when the target card is not adjacent
+    private func findBestAdjacentCard(
+        from sourceCard: Card,
+        to targetCard: Card,
+        cardPositionMap: [UUID: (row: Int, col: Int)],
+        selectedCardIds: Set<UUID>
+    ) -> Card? {
+        guard let sourcePos = cardPositionMap[sourceCard.id],
+              let targetPos = cardPositionMap[targetCard.id] else {
+            return nil
+        }
+        
+        // Get all selected cards except the source and target cards
+        let otherCards = selectionOrder.filter { 
+            $0.id != sourceCard.id && 
+            $0.id != targetCard.id && 
+            selectedCardIds.contains($0.id)
+        }
+        
+        // First, look for cards in the same column as the target card
+        let sameColumnCards = otherCards.filter { card in
+            guard let pos = cardPositionMap[card.id] else { return false }
+            return pos.col == targetPos.col && isAdjacent(position1: sourcePos, position2: pos)
+        }
+        
+        if let firstSameColumnCard = sameColumnCards.first {
+            return firstSameColumnCard
+        }
+        
+        // Next, look for cards in the same row as the target card
+        let sameRowCards = otherCards.filter { card in
+            guard let pos = cardPositionMap[card.id] else { return false }
+            return pos.row == targetPos.row && isAdjacent(position1: sourcePos, position2: pos)
+        }
+        
+        if let firstSameRowCard = sameRowCards.first {
+            return firstSameRowCard
+        }
+        
+        // Finally, look for any adjacent cards
+        let adjacentCards = otherCards.filter { card in
+            guard let pos = cardPositionMap[card.id] else { return false }
+            return isAdjacent(position1: sourcePos, position2: pos)
+        }
+        
+        return adjacentCards.first
+    }
+    
+    /// Ensures all selected cards are connected to at least one other card
+    private func ensureAllCardsConnected(
+        cardPositionMap: [UUID: (row: Int, col: Int)],
+        selectedCardIds: Set<UUID>
+    ) {
+        // Create a set of cards that already have connections
+        var connectedCardIds = Set<UUID>()
+        for connection in connections {
+            connectedCardIds.insert(connection.fromCard.id)
+            connectedCardIds.insert(connection.toCard.id)
+        }
+        
+        // Find cards that don't have any connections
+        let unconnectedCards = selectionOrder.filter { !connectedCardIds.contains($0.id) }
+        
+        // For each unconnected card, find the best card to connect to
+        for card in unconnectedCards {
+            guard let cardPos = cardPositionMap[card.id] else { continue }
+            
+            // Find all adjacent selected cards
+            let adjacentCards = selectionOrder.filter { otherCard in
+                guard otherCard.id != card.id,
+                      let otherPos = cardPositionMap[otherCard.id] else {
+                    return false
+                }
+                return isAdjacent(position1: cardPos, position2: otherPos)
+            }
+            
+            // If we found adjacent cards, connect to the first one
+            if let bestCard = adjacentCards.first,
+               let bestPos = cardPositionMap[bestCard.id] {
+                let (fromAnchor, toAnchor) = determineAnchorPoints(
+                    from: cardPos,
+                    to: bestPos
+                )
+                
+                connections.append(Connection(
+                    fromCard: card,
+                    toCard: bestCard,
+                    fromPosition: fromAnchor,
+                    toPosition: toAnchor
+                ))
+            }
+        }
+    }
+    
+    /// Determines the appropriate anchor points for connecting two cards
+    private func determineAnchorPoints(
+        from: (row: Int, col: Int),
+        to: (row: Int, col: Int)
+    ) -> (AnchorPoint.Position, AnchorPoint.Position) {
+        // Same column
+        if from.col == to.col {
+            return from.row < to.row ? 
+                (.bottom, .top) : 
+                (.top, .bottom)
+        }
+        
+        // Same row
+        if from.row == to.row {
+            return from.col < to.col ? 
+                (.right, .left) : 
+                (.left, .right)
+        }
+        
+        // Diagonal
+        let isDiagonalUp = from.row > to.row
+        let isDiagonalRight = from.col < to.col
+        
+        return (
+            isDiagonalUp ? 
+                (isDiagonalRight ? .topRight : .topLeft) : 
+                (isDiagonalRight ? .bottomRight : .bottomLeft),
+            isDiagonalUp ? 
+                (isDiagonalRight ? .bottomLeft : .bottomRight) : 
+                (isDiagonalRight ? .topLeft : .topRight)
+        )
+    }
+    
     /// Plays the currently selected hand and updates the game state
     func playHand() {
         let selectedCardsArray = Array(selectedCards)
@@ -265,6 +482,8 @@ final class GameViewModel: ObservableObject {
             // Clear selection state immediately to prevent button from reappearing
             selectedCards.removeAll()
             selectedCardPositions.removeAll()
+            selectionOrder.removeAll()
+            connections.removeAll()
             
             // Get positions of selected cards
             let emptyPositions = selectedCardsArray.compactMap { card in
@@ -549,6 +768,8 @@ final class GameViewModel: ObservableObject {
         cardPositions.removeAll()
         selectedCards.removeAll()
         eligibleCards.removeAll()
+        selectionOrder.removeAll()
+        connections.removeAll()
         score = 0
         isGameOver = false
         lastPlayedHand = nil

@@ -24,7 +24,7 @@ struct CardView: View {
                 // Card background
                 RoundedRectangle(cornerRadius: 8)
                     .fill(Color(hex: "#191919"))
-                    .frame(width: isSelected ? 64 : 60, height: isSelected ? 94 : 90)
+                    .frame(width: 64, height: 94)
                     .shadow(
                         color: Color(hex: "#191919").opacity(isSelected ? 0.5 : 0.3),
                         radius: isSelected ? 4 : 2,
