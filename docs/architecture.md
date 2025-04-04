@@ -2,50 +2,73 @@
 
 ## System Architecture Overview
 
-PokerSlam follows a clean MVVM (Model-View-ViewModel) architecture pattern, designed with SwiftUI's declarative UI paradigm in mind. The architecture emphasizes separation of concerns, testability, and maintainability while leveraging Swift's modern features and best practices.
+PokerSlam follows a clean MVVM (Model-View-ViewModel) architecture pattern, designed specifically for SwiftUI. This architecture emphasizes:
 
-### Core Architectural Components
+- Clear separation of concerns
+- Testability
+- Maintainability
+- SwiftUI integration
+- Reactive state management
 
-1. **Presentation Layer (Views)**
-   - SwiftUI-based UI components
-   - Declarative view hierarchy
-   - Reactive UI updates through SwiftUI's data binding
-   - Card grid layout with dynamic positioning
+## Core Architectural Components
 
-2. **Business Logic Layer (ViewModels)**
-   - Game logic and state management
-   - Data transformation and validation
-   - User interaction handling
-   - Card adjacency rules and validation
-   - Card shifting and filling logic
+### 1. Presentation Layer (Views)
 
-3. **Data Layer (Models)**
-   - Pure data structures
-   - Business rules and validation
-   - Domain-specific logic
-   - Card position tracking
+The presentation layer is built using SwiftUI and consists of:
 
-## Component Relationships
+#### Main Views
+- `GameView`: The main game interface
+- `CardGridView`: Manages the 5x5 grid layout
+- `CardView`: Individual card representation
 
-### 1. Data Models
+#### Component Views
+- `ConnectionLineView`: Renders individual connection lines
+- `ConnectionLinesLayer`: Manages all connection lines in the game
+- `HandRecognitionView`: Displays hand recognition results
+- `ScoreView`: Shows current score and statistics
 
-#### Card Model
+### 2. Business Logic Layer (ViewModels)
+
+The business logic layer handles game state and logic:
+
+#### GameViewModel
+- Manages game state
+- Handles card selection
+- Controls card shifting
+- Manages connections between cards
+- Processes hand recognition
+- Calculates scores
+
+### 3. Data Layer (Models)
+
+The data layer consists of core game models:
+
+#### Card Models
+- `Card`: Represents a playing card
+- `CardPosition`: Tracks card position in the grid
+- `Suit`: Defines card suits
+- `Rank`: Defines card ranks
+
+#### Connection Models
+- `Connection`: Represents a connection between two cards
+- `AnchorPoint`: Defines connection points on cards
+
+## Data Models
+
+### Card Model
 ```swift
-struct Card: Identifiable, Hashable {
-    let id: UUID
-    let suit: Suit
+struct Card: Identifiable, Equatable {
+    let id = UUID()
     let rank: Rank
+    let suit: Suit
+    var isSelected: Bool = false
+    var isEligible: Bool = false
 }
 ```
-- Core data structure representing a playing card
-- Implements `Identifiable` for unique identification
-- Implements `Hashable` for efficient collection operations
-- Contains immutable properties for suit and rank
 
-#### CardPosition Model
+### Card Position Model
 ```swift
-struct CardPosition: Identifiable {
-    let id = UUID()
+struct CardPosition: Equatable {
     let card: Card
     var currentRow: Int
     var currentCol: Int
@@ -53,110 +76,164 @@ struct CardPosition: Identifiable {
     var targetCol: Int
 }
 ```
-- Tracks card positions in the grid
-- Supports current and target positions for animations
-- Manages card movement and adjacency
 
-#### Suit Enum
+### Connection Model
 ```swift
-enum Suit: String, CaseIterable, Hashable {
-    case hearts, diamonds, clubs, spades
-    var color: String
+struct Connection: Identifiable, Equatable {
+    let id = UUID()
+    let fromCard: Card
+    let toCard: Card
+    let fromPosition: AnchorPoint.Position
+    let toPosition: AnchorPoint.Position
 }
 ```
-- Represents card suits
-- Provides color information for UI rendering
-- Implements `CaseIterable` for iteration support
-- Implements `Hashable` for collection operations
 
-#### Rank Enum
+### Anchor Point Model
 ```swift
-enum Rank: Int, CaseIterable, Hashable {
-    case ace = 1, two = 2, ..., king = 13
-    var display: String
+struct AnchorPoint: Equatable {
+    enum Position: String, CaseIterable {
+        case topLeft, top, topRight
+        case left, right
+        case bottomLeft, bottom, bottomRight
+    }
+    
+    let position: Position
+    let point: CGPoint
 }
 ```
-- Represents card ranks
-- Provides display string for UI
-- Implements `CaseIterable` for iteration support
-- Implements `Hashable` for collection operations
 
-### 2. View Layer Components
+## View Layer Components
 
-#### GameView
-- Main game interface
-- Manages the 5x5 card grid
-- Handles user interactions
-- Coordinates with GameViewModel
-
-#### CardView
-```swift
-struct CardView: View {
-    let card: Card
-    let isSelected: Bool
-    let isEligible: Bool
-    let isInteractive: Bool
-    let onTap: () -> Void
-}
-```
-- Individual card representation
-- Handles card selection states
-- Manages visual feedback
-- Provides interaction callbacks
-
-#### MainMenuView
-- Entry point interface
-- Game options and settings
-- High score display
-- Game start/resume controls
-
-### 3. ViewModel Layer
-
-#### GameViewModel
-```swift
-@MainActor
-final class GameViewModel: ObservableObject {
-    @Published private(set) var cardPositions: [CardPosition]
-    @Published private(set) var selectedCards: Set<Card>
-    @Published private(set) var eligibleCards: Set<Card>
-    @Published private(set) var score: Int
-    @Published var isGameOver: Bool
-}
-```
+### GameView
+- Main container view
 - Manages game state
-- Handles card selection logic
-- Validates poker hands
-- Controls game flow
-- Manages scoring system
+- Coordinates subviews
+- Handles user interactions
 
-#### GameState
+### CardView
+- Displays individual cards
+- Handles card selection
+- Manages card animations
+- Provides visual feedback
+
+### ConnectionLineView
+- Renders connection lines
+- Implements line draw animation
+- Supports customizable appearance
+- Handles animation state
+
+### ConnectionLinesLayer
+- Manages all connection lines
+- Calculates anchor points
+- Tracks card frames
+- Supports animation state
+
+## ViewModel Layer Components
+
+### GameViewModel
 ```swift
-class GameState: ObservableObject {
-    @Published var currentScore: Int
-    @Published var highScore: Int
+class GameViewModel: ObservableObject {
+    @Published var cardPositions: [CardPosition] = []
+    @Published var selectedCards: Set<Card> = []
+    @Published var eligibleCards: Set<Card> = []
+    @Published var connections: [Connection] = []
+    
+    // Game state management
+    func updateConnections() {
+        // Update connections based on selected cards
+    }
+    
+    func selectCard(_ card: Card) {
+        // Handle card selection
+    }
+    
+    func shiftCards() {
+        // Handle card shifting
+    }
 }
 ```
-- Global state management
-- Score tracking
-- High score persistence
-- Game settings
+
+## State Management
+
+### Published Properties
+- Card positions
+- Selected cards
+- Eligible cards
+- Connections
+- Game state
+
+### State Updates
+- Reactive updates
+- SwiftUI binding
+- State synchronization
+- UI updates
 
 ## Data Flow
 
-1. **User Interaction Flow**
-   ```
-   User Action → View → ViewModel → Model → ViewModel → View Update
-   ```
+1. User Interaction
+   - Card selection
+   - Game actions
 
-2. **State Management Flow**
-   ```
-   GameState → ViewModel → View → UI Update
-   ```
+2. ViewModel Processing
+   - State updates
+   - Connection management
+   - Game logic
 
-3. **Card Selection Flow**
-   ```
-   Card Tap → CardView → GameViewModel → Hand Validation → Score Update → UI Refresh
-   ```
+3. View Updates
+   - UI refresh
+   - Animation triggers
+   - Visual feedback
+
+## Design Patterns
+
+### MVVM Pattern
+- Clear separation of concerns
+- SwiftUI integration
+- Reactive updates
+
+### Observer Pattern
+- State observation
+- UI updates
+- Data synchronization
+
+### Factory Pattern
+- Card creation
+- Connection creation
+- Position management
+
+## Testing Strategy
+
+### View Tests
+- UI component tests
+- Interaction tests
+- Animation tests
+
+### ViewModel Tests
+- State management tests
+- Game logic tests
+- Connection logic tests
+
+### Model Tests
+- Data model tests
+- Validation tests
+- Equality tests
+
+## Performance Considerations
+
+### Rendering Optimization
+- Efficient connection line rendering
+- Card frame tracking
+- Animation performance
+
+### State Management
+- Minimal state updates
+- Efficient data structures
+- Optimized calculations
+
+### Memory Management
+- Proper cleanup
+- Resource management
+- State disposal
 
 ## Key Design Patterns
 

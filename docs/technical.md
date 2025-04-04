@@ -14,8 +14,17 @@
 ```
 PokerSlam/
 ├── Views/                 # SwiftUI Views
+│   ├── GameView.swift     # Main game interface
+│   ├── Components/        # Reusable UI components
+│   │   ├── ConnectionLineView.swift # Connection line rendering
+│   │   └── ConnectionLinesLayer.swift # Connection lines management
+│   └── ...
 ├── ViewModels/           # View Models
 ├── Models/               # Data Models
+│   ├── Card.swift        # Card model
+│   ├── Connection.swift  # Connection between cards
+│   ├── AnchorPoint.swift # Anchor point for connections
+│   └── ...
 ├── Extensions/          # Swift Extensions
 ├── Resources/           # Assets and Resources
 └── Tests/               # Test Suites
@@ -85,7 +94,150 @@ func selectCard(_ card: Card) {
 - Maximum 5 cards per selection
 - Real-time validation
 
-### 3. Card Shifting System
+### 3. Connection Lines System
+
+#### Connection Model
+```swift
+struct Connection: Identifiable, Equatable {
+    let id = UUID()
+    let fromCard: Card
+    let toCard: Card
+    let fromPosition: AnchorPoint.Position
+    let toPosition: AnchorPoint.Position
+}
+```
+- Represents a connection between two cards
+- Tracks source and destination cards
+- Specifies anchor points for line drawing
+- Implements `Identifiable` for unique identification
+- Implements `Equatable` for comparison
+
+#### Anchor Point Model
+```swift
+struct AnchorPoint: Equatable {
+    enum Position: String, CaseIterable {
+        case topLeft, top, topRight
+        case left, right
+        case bottomLeft, bottom, bottomRight
+    }
+    
+    let position: Position
+    let point: CGPoint
+}
+```
+- Defines anchor positions on cards
+- Supports 8 anchor points (corners and midpoints)
+- Accounts for card rounded corners
+- Provides point coordinates for line drawing
+
+#### Connection Line Rendering
+```swift
+struct ConnectionLineView: View {
+    let startPoint: CGPoint
+    let endPoint: CGPoint
+    let color: Color
+    let lineWidth: CGFloat
+    let isAnimated: Bool
+    @State private var animationProgress: CGFloat = 0
+    
+    var body: some View {
+        Path { path in
+            // Calculate the current end point based on animation progress
+            let currentEndPoint = CGPoint(
+                x: startPoint.x + (endPoint.x - startPoint.x) * animationProgress,
+                y: startPoint.y + (endPoint.y - startPoint.y) * animationProgress
+            )
+            
+            path.move(to: startPoint)
+            path.addLine(to: currentEndPoint)
+        }
+        .stroke(color, lineWidth: lineWidth)
+        .onAppear {
+            if isAnimated {
+                // Reset animation progress
+                animationProgress = 0
+                
+                // Animate the line drawing
+                withAnimation(.easeInOut(duration: 0.3)) {
+                    animationProgress = 1
+                }
+            } else {
+                // If not animated, set progress to 1 immediately
+                animationProgress = 1
+            }
+        }
+    }
+}
+```
+- Renders connection lines between cards
+- Implements line draw animation
+- Supports customizable appearance
+- Handles animation state management
+- Provides smooth visual feedback
+
+#### Connection Lines Layer
+```swift
+struct ConnectionLinesLayer: View {
+    @ObservedObject var viewModel: GameViewModel
+    let cardFrames: [UUID: CGRect]
+    let isAnimated: Bool
+    
+    var body: some View {
+        ZStack {
+            ForEach(viewModel.connections) { connection in
+                if let fromFrame = cardFrames[connection.fromCard.id],
+                   let toFrame = cardFrames[connection.toCard.id] {
+                    let fromPoint = calculateAnchorPoint(frame: fromFrame, position: connection.fromPosition)
+                    let toPoint = calculateAnchorPoint(frame: toFrame, position: connection.toPosition)
+                    
+                    ConnectionLineView(
+                        startPoint: fromPoint,
+                        endPoint: toPoint,
+                        color: Color(hex: "#d4d4d4"),
+                        lineWidth: 2,
+                        isAnimated: isAnimated
+                    )
+                }
+            }
+        }
+    }
+    
+    private func calculateAnchorPoint(frame: CGRect, position: AnchorPoint.Position) -> CGPoint {
+        // Define the corner radius offset (assuming cards have rounded corners)
+        let cornerRadius: CGFloat = 8.0
+        
+        switch position {
+        case .top:
+            return CGPoint(x: frame.midX, y: frame.minY)
+        case .right:
+            return CGPoint(x: frame.maxX, y: frame.midY)
+        case .bottom:
+            return CGPoint(x: frame.midX, y: frame.maxY)
+        case .left:
+            return CGPoint(x: frame.minX, y: frame.midY)
+        case .topLeft:
+            // Adjust for rounded corner by moving the point inward
+            return CGPoint(x: frame.minX + cornerRadius, y: frame.minY + cornerRadius)
+        case .topRight:
+            // Adjust for rounded corner by moving the point inward
+            return CGPoint(x: frame.maxX - cornerRadius, y: frame.minY + cornerRadius)
+        case .bottomLeft:
+            // Adjust for rounded corner by moving the point inward
+            return CGPoint(x: frame.minX + cornerRadius, y: frame.maxY - cornerRadius)
+        case .bottomRight:
+            // Adjust for rounded corner by moving the point inward
+            return CGPoint(x: frame.maxX - cornerRadius, y: frame.maxY - cornerRadius)
+        }
+    }
+}
+```
+- Manages all connection lines in the game
+- Calculates anchor points for connections
+- Handles card frame tracking
+- Supports animation state management
+- Accounts for card rounded corners
+
+### 4. Card Shifting System
 
 #### Shifting Logic
 ```swift
@@ -118,7 +270,7 @@ for col in 0..<5 {
 - Maintains grid completeness
 - Handles deck exhaustion
 
-### 4. Game Over Detection
+### 5. Game Over Detection
 
 #### End Game Logic
 ```swift
@@ -148,7 +300,7 @@ private func checkGameOver() {
 - Handles empty deck scenario
 - Validates remaining cards
 
-### 5. Hand Recognition System
+### 6. Hand Recognition System
 
 #### Hand Types
 - Pair
@@ -166,7 +318,7 @@ private func checkGameOver() {
 - Hand ranking system
 - Visual feedback
 
-### 6. Scoring System
+### 7. Scoring System
 
 #### Score Calculation
 ```swift
@@ -187,7 +339,7 @@ class GameState: ObservableObject {
 - Persistent storage
 - Real-time updates
 
-### 7. Animation System
+### 8. Animation System
 
 #### Card Animations
 ```swift

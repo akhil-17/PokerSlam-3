@@ -17,6 +17,8 @@ PokerSlam is an engaging puzzle game where players create poker hands by selecti
 - Modern, clean UI design
 - Intelligent card adjacency rules
 - Dynamic card shifting and filling
+- Visual connection lines between selected cards
+- Animated line drawing for enhanced visual feedback
 
 ### Game Rules
 - Cards must be adjacent to be selected
@@ -27,8 +29,9 @@ PokerSlam is an engaging puzzle game where players create poker hands by selecti
 - Cards shift down to fill empty positions
 - New cards are added from the top
 - Game ends when no valid hands can be formed with remaining cards
+- Connection lines visually link selected cards to show relationships
 
-## �� Technology Stack
+## 🎮 Technology Stack
 
 - **Framework**: SwiftUI
 - **Architecture**: MVVM (Model-View-ViewModel)
@@ -51,12 +54,17 @@ PokerSlam/
 │   ├── GameView.swift     # Main game interface
 │   ├── CardView.swift     # Individual card view
 │   ├── MainMenuView.swift # Main menu interface
-│   └── HandReferenceView.swift # Poker hand reference
+│   ├── HandReferenceView.swift # Poker hand reference
+│   └── Components/        # Reusable UI components
+│       ├── ConnectionLineView.swift # Connection line rendering
+│       └── ConnectionLinesLayer.swift # Connection lines management
 ├── ViewModels/           # View models
 │   └── GameViewModel.swift # Game logic and state management
 ├── Models/               # Data models
 │   ├── Card.swift        # Card model
-│   └── HandType.swift    # Poker hand types
+│   ├── HandType.swift    # Poker hand types
+│   ├── Connection.swift  # Connection between cards
+│   └── AnchorPoint.swift # Anchor point for connections
 ├── Extensions/          # Swift extensions
 ├── Resources/           # Assets and resources
 │   ├── Assets.xcassets/ # Image assets
@@ -67,7 +75,7 @@ PokerSlam/
 ## 🎯 Design Patterns & Architecture
 
 ### MVVM Architecture
-- **Models**: Pure data structures (Card, HandType)
+- **Models**: Pure data structures (Card, HandType, Connection, AnchorPoint)
 - **Views**: SwiftUI views for UI components
 - **ViewModels**: GameViewModel handles game logic and state
 
@@ -82,6 +90,7 @@ PokerSlam/
 - Clean separation of concerns
 - Reactive programming with SwiftUI
 - Haptic feedback for enhanced UX
+- Visual feedback through connection lines
 
 ## 🚀 Getting Started
 
@@ -97,6 +106,8 @@ PokerSlam/
 - Clear visual feedback for valid/invalid selections
 - Intuitive hand reference guide
 - Responsive design for all iOS devices
+- Animated connection lines between selected cards
+- Rounded corner-aware connection points
 
 ## 🔧 Technical Implementation
 
