@@ -2,80 +2,125 @@
 
 ## System Architecture Overview
 
-PokerSlam follows a clean MVVM (Model-View-ViewModel) architecture pattern, designed specifically for SwiftUI. This architecture emphasizes:
+PokerSlam follows a modern MVVM (Model-View-ViewModel) architecture with SwiftUI, emphasizing clean separation of concerns, testability, and maintainability. The architecture is designed to support iOS 15.0+ with enhanced features for iOS 18.0+.
 
-- Clear separation of concerns
-- Testability
-- Maintainability
-- SwiftUI integration
-- Reactive state management
+### Core Architectural Components
 
-## Core Architectural Components
+1. **View Layer**
+   - SwiftUI views for UI representation
+   - Reusable components
+   - View composition
+   - State observation
+   - iOS version-specific features
 
-### 1. Presentation Layer (Views)
+2. **ViewModel Layer**
+   - Business logic
+   - State management
+   - Data transformation
+   - Event handling
+   - Game rules enforcement
 
-The presentation layer is built using SwiftUI and consists of:
+3. **Model Layer**
+   - Data structures
+   - Game state
+   - Card logic
+   - Connection models
+   - Animation states
 
-#### Main Views
-- `GameView`: The main game interface
-- `CardGridView`: Manages the 5x5 grid layout
-- `CardView`: Individual card representation
-
-#### Component Views
-- `ConnectionLineView`: Renders individual connection lines
-- `ConnectionLinesLayer`: Manages all connection lines in the game
-- `HandRecognitionView`: Displays hand recognition results
-- `ScoreView`: Shows current score and statistics
-
-### 2. Business Logic Layer (ViewModels)
-
-The business logic layer handles game state and logic:
-
-#### GameViewModel
-- Manages game state
-- Handles card selection
-- Controls card shifting
-- Manages connections between cards
-- Processes hand recognition
-- Calculates scores
-
-### 3. Data Layer (Models)
-
-The data layer consists of core game models:
-
-#### Card Models
-- `Card`: Represents a playing card
-- `CardPosition`: Tracks card position in the grid
-- `Suit`: Defines card suits
-- `Rank`: Defines card ranks
-
-#### Connection Models
-- `Connection`: Represents a connection between two cards
-- `AnchorPoint`: Defines connection points on cards
+4. **Service Layer**
+   - Game mechanics
+   - Hand detection
+   - Score calculation
+   - Animation coordination
+   - Background effects
 
 ## Data Models
 
 ### Card Model
 ```swift
 struct Card: Identifiable, Equatable {
-    let id = UUID()
+    let id: UUID
     let rank: Rank
     let suit: Suit
-    var isSelected: Bool = false
-    var isEligible: Bool = false
+    var isSelected: Bool
+    var isEligible: Bool
 }
 ```
+- Unique identification
+- Card properties
+- Selection state
+- Eligibility tracking
 
-### Card Position Model
+### Hand Type Model
 ```swift
-struct CardPosition: Equatable {
-    let card: Card
-    var currentRow: Int
-    var currentCol: Int
-    var targetRow: Int
-    var targetCol: Int
+enum HandType: String {
+    case pair
+    case miniStraight
+    case miniFlush
+    case miniStraightFlush
+    case miniRoyalFlush
+    case threeOfAKind
+    case twoPair
+    case nearlyStraight
+    case nearlyFlush
+    case nearlyStraightFlush
+    case nearlyRoyalFlush
+    case fourOfAKind
+    case straight
+    case flush
+    case fullHouse
+    case straightFlush
+    case royalFlush
+    
+    var score: Int {
+        switch self {
+        case .pair: return 15
+        case .miniStraight: return 25
+        case .miniFlush: return 30
+        case .miniStraightFlush: return 35
+        case .miniRoyalFlush: return 40
+        case .threeOfAKind: return 45
+        case .twoPair: return 50
+        case .nearlyStraight: return 55
+        case .nearlyFlush: return 60
+        case .nearlyStraightFlush: return 65
+        case .nearlyRoyalFlush: return 70
+        case .fourOfAKind: return 75
+        case .straight: return 80
+        case .flush: return 85
+        case .fullHouse: return 90
+        case .straightFlush: return 95
+        case .royalFlush: return 100
+        }
+    }
+    
+    var displayName: String {
+        switch self {
+        case .pair: return "Pair"
+        case .miniStraight: return "Mini Straight"
+        case .miniFlush: return "Mini Flush"
+        case .miniStraightFlush: return "Mini Straight Flush"
+        case .miniRoyalFlush: return "Mini Royal Flush"
+        case .threeOfAKind: return "Three of a Kind"
+        case .twoPair: return "Two Pair"
+        case .nearlyStraight: return "Nearly Straight"
+        case .nearlyFlush: return "Nearly Flush"
+        case .nearlyStraightFlush: return "Nearly Straight Flush"
+        case .nearlyRoyalFlush: return "Nearly Royal Flush"
+        case .fourOfAKind: return "Four of a Kind"
+        case .straight: return "Straight"
+        case .flush: return "Flush"
+        case .fullHouse: return "Full House"
+        case .straightFlush: return "Straight Flush"
+        case .royalFlush: return "Royal Flush"
+        }
+    }
 }
 ```
+- Comprehensive hand type enumeration
+- Score calculation for each hand type
+- Display name for UI presentation
+- Prioritized hand detection order
 
 ### Connection Model
 ```swift
@@ -87,6 +132,10 @@ struct Connection: Identifiable, Equatable {
     let toPosition: AnchorPoint.Position
 }
 ```
+- Connection identification
+- Source and destination cards
+- Anchor point positions
+- Equatable conformance
 
 ### Anchor Point Model
 ```swift
@@ -101,139 +150,295 @@ struct AnchorPoint: Equatable {
     let point: CGPoint
 }
 ```
+- Position enumeration
+- Point coordinates
+- Corner handling
+- Equatable conformance
+
+### Connection Graph Model
+```swift
+private struct ConnectionGraph {
+    var nodes: Set<ConnectionNode>
+    var edges: Set<ConnectionEdge>
+    
+    func findMinimumSpanningTree() -> Set<ConnectionEdge>
+}
+```
+- Graph representation
+- Node and edge management
+- Minimum spanning tree algorithm
+- Connection optimization
+
+### Mesh Gradient Model
+```swift
+struct MeshGradientState {
+    enum Position {
+        case first, second, third, fourth
+    }
+    
+    var currentPosition: Position
+    var points: [SIMD2<Float>]
+    var colors: [Color]
+    var backgroundColor: Color
+}
+```
+- Position tracking
+- Point coordinates
+- Color management
+- Animation state
 
 ## View Layer Components
 
-### GameView
-- Main container view
-- Manages game state
-- Coordinates subviews
-- Handles user interactions
+### Game View
+- Main game interface
+- View composition
+- State observation
+- User interaction
+- Layout management
 
-### CardView
-- Displays individual cards
-- Handles card selection
-- Manages card animations
-- Provides visual feedback
+### Hand Reference View
+- Comprehensive hand type display
+- Organized by card count (2-5 cards)
+- Clear section headers
+- Examples on separate lines
+- Score display for each hand type
 
-### ConnectionLineView
-- Renders connection lines
-- Implements line draw animation
-- Supports customizable appearance
-- Handles animation state
+### Card Grid View
+- Card layout
+- Selection handling
+- Animation coordination
+- Empty space management
+- Grid maintenance
 
-### ConnectionLinesLayer
-- Manages all connection lines
-- Calculates anchor points
-- Tracks card frames
-- Supports animation state
+### Connection Lines View
+- Line rendering
+- Animation handling
+- Path calculation
+- Visual feedback
+- Performance optimization
 
-## ViewModel Layer Components
+### Connection Lines Layer
+- Connection management
+- Frame tracking
+- Animation coordination
+- Visual effects
+- Performance optimization
 
-### GameViewModel
-```swift
-class GameViewModel: ObservableObject {
-    @Published var cardPositions: [CardPosition] = []
-    @Published var selectedCards: Set<Card> = []
-    @Published var eligibleCards: Set<Card> = []
-    @Published var connections: [Connection] = []
-    
-    // Game state management
-    func updateConnections() {
-        // Update connections based on selected cards
-    }
-    
-    func selectCard(_ card: Card) {
-        // Handle card selection
-    }
-    
-    func shiftCards() {
-        // Handle card shifting
-    }
-}
-```
+### Mesh Gradient Background
+- Background rendering
+- Position animation
+- Color management
+- iOS version handling
+- Performance optimization
+
+## View Model Layer Components
+
+### Game ViewModel
+- Game state management
+- Card selection logic
+- Score calculation
+- Hand detection
+- Animation coordination
+
+### Connection ViewModel
+- Connection management
+- Path optimization
+- Animation timing
+- Visual effects
+- Performance monitoring
+
+### Background ViewModel
+- Gradient state management
+- Position animation
+- Color coordination
+- iOS version handling
+- Performance optimization
 
 ## State Management
 
-### Published Properties
-- Card positions
-- Selected cards
-- Eligible cards
-- Connections
-- Game state
+### Game State
+```swift
+class GameState: ObservableObject {
+    @Published var currentScore: Int
+    @Published var highScore: Int
+    @Published var isGameOver: Bool
+    @Published var selectedCards: Set<Card>
+    @Published var eligibleCards: Set<Card>
+}
+```
+- Score tracking
+- Game status
+- Selection state
+- Eligibility tracking
 
-### State Updates
-- Reactive updates
-- SwiftUI binding
-- State synchronization
-- UI updates
+### Connection State
+```swift
+class ConnectionState: ObservableObject {
+    @Published var connections: [Connection]
+    @Published var cardFrames: [UUID: CGRect]
+    @Published var isAnimating: Bool
+}
+```
+- Connection tracking
+- Frame management
+- Animation state
+- Visual effects
+
+### Background State
+```swift
+class BackgroundState: ObservableObject {
+    @Published var currentPosition: MeshGradientState.Position
+    @Published var isAnimating: Bool
+    @Published var colors: [Color]
+}
+```
+- Position tracking
+- Animation state
+- Color management
+- iOS version handling
 
 ## Data Flow
 
-1. User Interaction
-   - Card selection
-   - Game actions
+### User Interaction Flow
+1. User selects card
+2. ViewModel updates selection state
+3. Connection system updates
+4. Visual feedback provided
+5. Game state updated
 
-2. ViewModel Processing
-   - State updates
-   - Connection management
-   - Game logic
+### Connection Flow
+1. Cards selected
+2. Graph created
+3. Minimum spanning tree found
+4. Connections rendered
+5. Animation triggered
 
-3. View Updates
-   - UI refresh
-   - Animation triggers
-   - Visual feedback
+### Background Flow
+1. Position state updated
+2. Animation triggered
+3. Colors interpolated
+4. Visual effect rendered
+5. Next position scheduled
 
 ## Design Patterns
-
-### MVVM Pattern
-- Clear separation of concerns
-- SwiftUI integration
-- Reactive updates
 
 ### Observer Pattern
 - State observation
 - UI updates
-- Data synchronization
+- Animation coordination
+- Event handling
 
 ### Factory Pattern
 - Card creation
 - Connection creation
-- Position management
+- Animation creation
+- State creation
+
+### Strategy Pattern
+- Hand detection
+- Path finding
+- Animation timing
+- Color interpolation
+- Prioritized hand validation
+
+### Command Pattern
+- User actions
+- Game actions
+- Animation actions
+- State actions
 
 ## Testing Strategy
 
-### View Tests
-- UI component tests
-- Interaction tests
-- Animation tests
+### Unit Tests
+- Model logic
+- ViewModel logic
+- Game rules
+- Connection logic
+- Animation logic
 
-### ViewModel Tests
-- State management tests
-- Game logic tests
-- Connection logic tests
+### UI Tests
+- User interaction
+- Visual feedback
+- Animation effects
+- Layout behavior
+- iOS version handling
 
-### Model Tests
-- Data model tests
-- Validation tests
-- Equality tests
+### Performance Tests
+- Animation smoothness
+- Memory usage
+- CPU usage
+- Battery impact
+- Response time
 
 ## Performance Considerations
 
-### Rendering Optimization
-- Efficient connection line rendering
-- Card frame tracking
-- Animation performance
-
-### State Management
-- Minimal state updates
-- Efficient data structures
-- Optimized calculations
-
 ### Memory Management
+- Efficient data structures
 - Proper cleanup
 - Resource management
-- State disposal
+- Cache utilization
+- SIMD2 optimization
+
+### Animation Performance
+- Efficient rendering
+- Frame rate optimization
+- Resource management
+- State updates
+- Visual effects
+
+### Layout Performance
+- Efficient layout
+- View recycling
+- Frame calculation
+- Animation coordination
+- Resource management
+
+## Best Practices
+
+### Code Organization
+- Clear structure
+- Proper documentation
+- Consistent naming
+- Modular design
+- Version handling
+
+### Error Handling
+- Graceful degradation
+- User feedback
+- Error logging
+- Recovery mechanisms
+- iOS version fallbacks
+
+### Security
+- Data validation
+- Input sanitization
+- Secure storage
+- Privacy compliance
+- Version security
+
+### Accessibility
+- VoiceOver support
+- Dynamic type
+- Color contrast
+- Motion reduction
+- iOS version support
+
+## Future Architecture Considerations
+
+### 1. Scalability
+- Modular component design
+- Extensible architecture
+- Feature isolation
+
+### 2. Maintainability
+- Clear component boundaries
+- Consistent patterns
+- Documentation
+
+### 3. Performance
+- State optimization
+- Memory management
+- UI efficiency
 
 ## Key Design Patterns
 

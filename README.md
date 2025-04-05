@@ -14,11 +14,13 @@ PokerSlam is an engaging puzzle game where players create poker hands by selecti
 - High score tracking
 - Hand reference guide
 - Smooth animations and transitions
-- Modern, clean UI design
+- Modern, clean UI design with animated mesh gradient background
 - Intelligent card adjacency rules
 - Dynamic card shifting and filling
 - Visual connection lines between selected cards
 - Animated line drawing for enhanced visual feedback
+- Optimized connection path finding for selected cards
+- Comprehensive poker hand detection including mini straight flushes and nearly straight flushes
 
 ### Game Rules
 - Cards must be adjacent to be selected
@@ -30,6 +32,7 @@ PokerSlam is an engaging puzzle game where players create poker hands by selecti
 - New cards are added from the top
 - Game ends when no valid hands can be formed with remaining cards
 - Connection lines visually link selected cards to show relationships
+- Hand detection prioritizes higher-ranking hands (e.g., straight flush over flush)
 
 ## 🎮 Technology Stack
 
@@ -45,6 +48,11 @@ PokerSlam is an engaging puzzle game where players create poker hands by selecti
   - Value types (structs) for models
   - Observable pattern for state management
   - Dependency injection
+- **iOS Features**:
+  - MeshGradient for iOS 18.0+ (with fallback for earlier versions)
+  - SIMD2 for efficient vector operations
+  - Advanced animation system
+  - Comprehensive poker hand detection system
 
 ## 📁 Project Structure
 
@@ -56,6 +64,7 @@ PokerSlam/
 │   ├── MainMenuView.swift # Main menu interface
 │   ├── HandReferenceView.swift # Poker hand reference
 │   └── Components/        # Reusable UI components
+│       ├── SharedUI.swift # Shared UI components including MeshGradientBackground
 │       ├── ConnectionLineView.swift # Connection line rendering
 │       └── ConnectionLinesLayer.swift # Connection lines management
 ├── ViewModels/           # View models
@@ -66,6 +75,7 @@ PokerSlam/
 │   ├── Connection.swift  # Connection between cards
 │   └── AnchorPoint.swift # Anchor point for connections
 ├── Extensions/          # Swift extensions
+│   └── Color+Hex.swift  # Color extension for hex color support
 ├── Resources/           # Assets and resources
 │   ├── Assets.xcassets/ # Image assets
 │   └── Fonts/          # Custom fonts
@@ -91,6 +101,7 @@ PokerSlam/
 - Reactive programming with SwiftUI
 - Haptic feedback for enhanced UX
 - Visual feedback through connection lines
+- Advanced animation system with position-based transitions
 
 ## 🚀 Getting Started
 
@@ -108,6 +119,8 @@ PokerSlam/
 - Responsive design for all iOS devices
 - Animated connection lines between selected cards
 - Rounded corner-aware connection points
+- Animated mesh gradient background with position-based transitions
+- Optimized connection path finding for selected cards
 
 ## 🔧 Technical Implementation
 
@@ -123,15 +136,29 @@ PokerSlam/
 - Real-time score updates
 - New high score celebrations
 
+### Connection System
+- Intelligent path finding between selected cards
+- Minimum spanning tree algorithm for optimal connections
+- Support for straight and diagonal connections
+- Animated line drawing with customizable appearance
+- Rounded corner-aware connection points
+
+### Background System
+- Animated mesh gradient background for iOS 18.0+
+- Position-based animation with smooth transitions
+- Fallback to linear gradient for earlier iOS versions
+- Customizable color palette and animation timing
+
 ### Performance Optimizations
 - Efficient card position tracking
 - Optimized hand recognition algorithms
 - Smooth animations using SwiftUI
 - Memory-efficient data structures
+- SIMD2 for efficient vector operations
 
 ## 📱 Requirements
 
-- iOS 15.0+
+- iOS 15.0+ (with enhanced features for iOS 18.0+)
 - Xcode 13.0+
 - Swift 5.5+
 
