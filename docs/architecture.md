@@ -51,6 +51,77 @@ struct Card: Identifiable, Equatable {
 - Selection state
 - Eligibility tracking
 
+### Hand Type Model
+```swift
+enum HandType: String {
+    case pair
+    case miniStraight
+    case miniFlush
+    case miniStraightFlush
+    case miniRoyalFlush
+    case threeOfAKind
+    case twoPair
+    case nearlyStraight
+    case nearlyFlush
+    case nearlyStraightFlush
+    case nearlyRoyalFlush
+    case fourOfAKind
+    case straight
+    case flush
+    case fullHouse
+    case straightFlush
+    case royalFlush
+    
+    var score: Int {
+        switch self {
+        case .pair: return 15
+        case .miniStraight: return 25
+        case .miniFlush: return 30
+        case .miniStraightFlush: return 35
+        case .miniRoyalFlush: return 40
+        case .threeOfAKind: return 45
+        case .twoPair: return 50
+        case .nearlyStraight: return 55
+        case .nearlyFlush: return 60
+        case .nearlyStraightFlush: return 65
+        case .nearlyRoyalFlush: return 70
+        case .fourOfAKind: return 75
+        case .straight: return 80
+        case .flush: return 85
+        case .fullHouse: return 90
+        case .straightFlush: return 95
+        case .royalFlush: return 100
+        }
+    }
+    
+    var displayName: String {
+        switch self {
+        case .pair: return "Pair"
+        case .miniStraight: return "Mini Straight"
+        case .miniFlush: return "Mini Flush"
+        case .miniStraightFlush: return "Mini Straight Flush"
+        case .miniRoyalFlush: return "Mini Royal Flush"
+        case .threeOfAKind: return "Three of a Kind"
+        case .twoPair: return "Two Pair"
+        case .nearlyStraight: return "Nearly Straight"
+        case .nearlyFlush: return "Nearly Flush"
+        case .nearlyStraightFlush: return "Nearly Straight Flush"
+        case .nearlyRoyalFlush: return "Nearly Royal Flush"
+        case .fourOfAKind: return "Four of a Kind"
+        case .straight: return "Straight"
+        case .flush: return "Flush"
+        case .fullHouse: return "Full House"
+        case .straightFlush: return "Straight Flush"
+        case .royalFlush: return "Royal Flush"
+        }
+    }
+}
+```
+- Comprehensive hand type enumeration
+- Score calculation for each hand type
+- Display name for UI presentation
+- Prioritized hand detection order
+
 ### Connection Model
 ```swift
 struct Connection: Identifiable, Equatable {
@@ -124,6 +195,13 @@ struct MeshGradientState {
 - State observation
 - User interaction
 - Layout management
+
+### Hand Reference View
+- Comprehensive hand type display
+- Organized by card count (2-5 cards)
+- Clear section headers
+- Examples on separate lines
+- Score display for each hand type
 
 ### Card Grid View
 - Card layout
@@ -261,6 +339,7 @@ class BackgroundState: ObservableObject {
 - Path finding
 - Animation timing
 - Color interpolation
+- Prioritized hand validation
 
 ### Command Pattern
 - User actions

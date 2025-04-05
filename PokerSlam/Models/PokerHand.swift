@@ -12,18 +12,20 @@ enum HandType: Int, Comparable {
     // 4-card hands
     case fourOfAKind = 75
     case nearlyRoyalFlush = 70
-    case nearlyFlush = 65
-    case nearlyStraight = 60
-    case twoPair = 55
+    case nearlyStraightFlush = 65
+    case nearlyFlush = 60
+    case nearlyStraight = 55
+    case twoPair = 50
     
     // 3-card hands
-    case threeOfAKind = 50
-    case miniRoyalFlush = 45
-    case miniFlush = 40
-    case miniStraight = 35
+    case threeOfAKind = 45
+    case miniRoyalFlush = 40
+    case miniStraightFlush = 35
+    case miniFlush = 30
+    case miniStraight = 25
     
     // 2-card hands (lowest scoring)
-    case onePair = 15
+    case pair = 15
     
     var displayName: String {
         switch self {
@@ -34,14 +36,16 @@ enum HandType: Int, Comparable {
         case .straight: return "Straight"
         case .fourOfAKind: return "Four of a kind"
         case .nearlyRoyalFlush: return "Nearly royal flush"
+        case .nearlyStraightFlush: return "Nearly straight flush"
         case .nearlyFlush: return "Nearly flush"
         case .nearlyStraight: return "Nearly straight"
         case .twoPair: return "Two pair"
         case .threeOfAKind: return "Three of a kind"
         case .miniRoyalFlush: return "Mini royal flush"
+        case .miniStraightFlush: return "Mini straight flush"
         case .miniFlush: return "Mini flush"
         case .miniStraight: return "Mini straight"
-        case .onePair: return "One pair"
+        case .pair: return "Pair"
         }
     }
     
@@ -86,6 +90,11 @@ struct PokerHandDetector {
             return .fourOfAKind
         }
         
+        // Check for nearly straight flush
+        if isNearlyStraightFlush(cards: sortedCards) {
+            return .nearlyStraightFlush
+        }
+        
         // Check for full house
         if isFullHouse(cards: sortedCards) {
             return .fullHouse
@@ -101,11 +110,6 @@ struct PokerHandDetector {
             return .nearlyFlush
         }
         
-        // Check for mini flush
-        if isMiniFlush(cards: sortedCards) {
-            return .miniFlush
-        }
-        
         // Check for straight
         if isStraight(cards: sortedCards) {
             return .straight
@@ -114,6 +118,16 @@ struct PokerHandDetector {
         // Check for nearly straight
         if isNearlyStraight(cards: sortedCards) {
             return .nearlyStraight
+        }
+        
+        // Check for mini straight flush
+        if isMiniStraightFlush(cards: sortedCards) {
+            return .miniStraightFlush
+        }
+        
+        // Check for mini flush
+        if isMiniFlush(cards: sortedCards) {
+            return .miniFlush
         }
         
         // Check for mini straight
@@ -132,8 +146,8 @@ struct PokerHandDetector {
         }
         
         // Check for one pair
-        if isOnePair(cards: sortedCards) {
-            return .onePair
+        if isPair(cards: sortedCards) {
+            return .pair
         }
         
         // No valid hand found
@@ -157,6 +171,17 @@ struct PokerHandDetector {
         return ranks == requiredRanks
     }
     
+    private static func isNearlyStraightFlush(cards: [Card]) -> Bool {
+        guard cards.count == 4 else { return false }
+        
+        // First check if all cards are of the same suit
+        let suits = cards.map { $0.suit }
+        guard Set(suits).count == 1 else { return false }
+        
+        // Then check if the ranks form a straight
+        return isNearlyStraight(cards: cards)
+    }
+    
     private static func isMiniRoyalFlush(cards: [Card]) -> Bool {
         guard cards.count == 3 else { return false }
         let suits = cards.map { $0.suit }
@@ -165,6 +190,17 @@ struct PokerHandDetector {
         let ranks = Set(cards.map { $0.rank })
         let requiredRanks: Set<Rank> = [.jack, .queen, .king]
         return ranks == requiredRanks
+    }
+    
+    private static func isMiniStraightFlush(cards: [Card]) -> Bool {
+        guard cards.count == 3 else { return false }
+        
+        // First check if all cards are of the same suit
+        let suits = cards.map { $0.suit }
+        guard Set(suits).count == 1 else { return false }
+        
+        // Then check if the ranks form a straight
+        return isMiniStraight(cards: cards)
     }
     
     private static func isStraightFlush(cards: [Card]) -> Bool {
@@ -359,12 +395,15 @@ struct PokerHandDetector {
     private static func isTwoPair(cards: [Card]) -> Bool {
         guard cards.count == 4 else { return false }
         let ranks = cards.map { $0.rank }
-        let uniqueRanks = Set(ranks)
-        return uniqueRanks.count == 2
+        let rankCounts = Dictionary(grouping: ranks, by: { $0 }).mapValues { $0.count }
+        return rankCounts.count == 2 && rankCounts.values.allSatisfy { $0 == 2 }
     }
     
-    private static func isOnePair(cards: [Card]) -> Bool {
+    /// Checks if the cards form a pair (two cards of the same rank)
+    private static func isPair(cards: [Card]) -> Bool {
         guard cards.count == 2 else { return false }
+        
+        // Check if both cards have the same rank
         return cards[0].rank == cards[1].rank
     }
 } 

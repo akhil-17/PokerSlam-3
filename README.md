@@ -20,6 +20,7 @@ PokerSlam is an engaging puzzle game where players create poker hands by selecti
 - Visual connection lines between selected cards
 - Animated line drawing for enhanced visual feedback
 - Optimized connection path finding for selected cards
+- Comprehensive poker hand detection including mini straight flushes and nearly straight flushes
 
 ### Game Rules
 - Cards must be adjacent to be selected
@@ -31,6 +32,7 @@ PokerSlam is an engaging puzzle game where players create poker hands by selecti
 - New cards are added from the top
 - Game ends when no valid hands can be formed with remaining cards
 - Connection lines visually link selected cards to show relationships
+- Hand detection prioritizes higher-ranking hands (e.g., straight flush over flush)
 
 ## 🎮 Technology Stack
 
@@ -50,6 +52,7 @@ PokerSlam is an engaging puzzle game where players create poker hands by selecti
   - MeshGradient for iOS 18.0+ (with fallback for earlier versions)
   - SIMD2 for efficient vector operations
   - Advanced animation system
+  - Comprehensive poker hand detection system
 
 ## 📁 Project Structure
 

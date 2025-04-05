@@ -324,38 +324,71 @@ struct HandReferenceView: View {
                 
                 ScrollView {
                     VStack(alignment: .leading, spacing: 15) {
-                        // 5-card hands
+                        // 2-card hands (lowest scoring)
+                        SectionHeader(title: "2-Card Hands")
                         HandReferenceRow(
-                            title: "Royal Flush",
-                            description: "A, K, Q, J, 10 of same suit (e.g., A♥ K♥ Q♥ J♥ 10♥)",
-                            score: "100"
-                        )
-                        HandReferenceRow(
-                            title: "Straight Flush",
-                            description: "Five consecutive cards of same suit (e.g., 9♠ 8♠ 7♠ 6♠ 5♠)",
-                            score: "95"
-                        )
-                        HandReferenceRow(
-                            title: "Full House",
-                            description: "Three of a kind plus a pair (e.g., 3♣ 3♦ 3♥ 2♠ 2♣)",
-                            score: "90"
-                        )
-                        HandReferenceRow(
-                            title: "Flush",
-                            description: "Five cards of same suit (e.g., A♦ 8♦ 6♦ 4♦ 2♦)",
-                            score: "85"
-                        )
-                        HandReferenceRow(
-                            title: "Straight",
-                            description: "Five consecutive cards (e.g., 9♠ 8♥ 7♦ 6♣ 5♠)",
-                            score: "80"
+                            title: "Pair",
+                            description: "Two cards of same rank (e.g., 2♠ 2♥)",
+                            score: "15"
                         )
                         
-                        // 4-card hands
+                        // Add spacing between groups
+                        Spacer()
+                            .frame(height: 16)
+                        
+                        // 3-card hands
+                        SectionHeader(title: "3-Card Hands")
                         HandReferenceRow(
-                            title: "Four of a Kind",
-                            description: "Four cards of same rank (e.g., 7♠ 7♥ 7♦ 7♣)",
-                            score: "75"
+                            title: "Mini Straight",
+                            description: "Three consecutive cards (e.g., 3♠ 4♥ 5♦)",
+                            score: "25"
+                        )
+                        HandReferenceRow(
+                            title: "Mini Flush",
+                            description: "Three cards of same suit (e.g., A♥ K♥ Q♥)",
+                            score: "30"
+                        )
+                        HandReferenceRow(
+                            title: "Mini Straight Flush",
+                            description: "Three consecutive cards of same suit (e.g., 8♣ 7♣ 6♣)",
+                            score: "35"
+                        )
+                        HandReferenceRow(
+                            title: "Mini Royal Flush",
+                            description: "J, Q, K of same suit (e.g., J♣ Q♣ K♣)",
+                            score: "40"
+                        )
+                        HandReferenceRow(
+                            title: "Three of a Kind",
+                            description: "Three cards of same rank (e.g., 4♠ 4♥ 4♦)",
+                            score: "45"
+                        )
+                        
+                        // Add spacing between groups
+                        Spacer()
+                            .frame(height: 16)
+                        
+                        // 4-card hands
+                        SectionHeader(title: "4-Card Hands")
+                        HandReferenceRow(
+                            title: "Two Pair",
+                            description: "Two different pairs (e.g., J♠ J♥ Q♣ Q♦)",
+                            score: "50"
+                        )
+                        HandReferenceRow(
+                            title: "Nearly Straight",
+                            description: "Four consecutive cards (e.g., 5♠ 4♥ 3♦ 2♣)",
+                            score: "55"
+                        )
+                        HandReferenceRow(
+                            title: "Nearly Flush",
+                            description: "Four cards of same suit (e.g., A♠ K♠ Q♠ J♠)",
+                            score: "60"
+                        )
+                        HandReferenceRow(
+                            title: "Nearly Straight Flush",
+                            description: "Four consecutive cards of same suit (e.g., 9♠ 8♠ 7♠ 6♠)",
+                            score: "65"
                         )
                         HandReferenceRow(
                             title: "Nearly Royal Flush",
@@ -363,48 +396,41 @@ struct HandReferenceView: View {
                             score: "70"
                         )
                         HandReferenceRow(
-                            title: "Nearly Flush",
-                            description: "Four cards of same suit (e.g., A♠ K♠ Q♠ J♠)",
-                            score: "65"
-                        )
-                        HandReferenceRow(
-                            title: "Nearly Straight",
-                            description: "Four consecutive cards (e.g., 5♠ 4♥ 3♦ 2♣)",
-                            score: "60"
-                        )
-                        HandReferenceRow(
-                            title: "Two Pair",
-                            description: "Two different pairs (e.g., J♠ J♥ Q♣ Q♦)",
-                            score: "55"
+                            title: "Four of a Kind",
+                            description: "Four cards of same rank (e.g., 7♠ 7♥ 7♦ 7♣)",
+                            score: "75"
                         )
                         
-                        // 3-card hands
-                        HandReferenceRow(
-                            title: "Three of a Kind",
-                            description: "Three cards of same rank (e.g., 4♠ 4♥ 4♦)",
-                            score: "50"
-                        )
-                        HandReferenceRow(
-                            title: "Mini Royal Flush",
-                            description: "J, Q, K of same suit (e.g., J♣ Q♣ K♣)",
-                            score: "45"
-                        )
-                        HandReferenceRow(
-                            title: "Mini Flush",
-                            description: "Three cards of same suit (e.g., A♥ K♥ Q♥)",
-                            score: "40"
-                        )
-                        HandReferenceRow(
-                            title: "Mini Straight",
-                            description: "Three consecutive cards (e.g., 3♠ 4♥ 5♦)",
-                            score: "35"
-                        )
+                        // Add spacing between groups
+                        Spacer()
+                            .frame(height: 16)
                         
-                        // 2-card hands
+                        // 5-card hands (highest scoring)
+                        SectionHeader(title: "5-Card Hands")
                         HandReferenceRow(
-                            title: "One Pair",
-                            description: "Two cards of same rank (e.g., 2♠ 2♥)",
-                            score: "15"
+                            title: "Straight",
+                            description: "Five consecutive cards (e.g., 9♠ 8♥ 7♦ 6♣ 5♠)",
+                            score: "80"
+                        )
+                        HandReferenceRow(
+                            title: "Flush",
+                            description: "Five cards of same suit (e.g., A♦ 8♦ 6♦ 4♦ 2♦)",
+                            score: "85"
+                        )
+                        HandReferenceRow(
+                            title: "Full House",
+                            description: "Three of a kind plus a pair (e.g., 3♣ 3♦ 3♥ 2♠ 2♣)",
+                            score: "90"
+                        )
+                        HandReferenceRow(
+                            title: "Straight Flush",
+                            description: "Five consecutive cards of same suit (e.g., 9♠ 8♠ 7♠ 6♠ 5♠)",
+                            score: "95"
+                        )
+                        HandReferenceRow(
+                            title: "Royal Flush",
+                            description: "A, K, Q, J, 10 of same suit (e.g., A♥ K♥ Q♥ J♥ 10♥)",
+                            score: "100"
                         )
                     }
                     .padding()
@@ -424,25 +450,62 @@ struct HandReferenceView: View {
     }
 }
 
+struct SectionHeader: View {
+    let title: String
+    
+    var body: some View {
+        HStack(spacing: 8) {
+            Text(title.uppercased())
+                .font(.system(size: 12))
+                .fontWeight(.bold)
+                .foregroundColor(.white.opacity(0.75))
+            
+            Rectangle()
+                .fill(Color(hex: "#d4d4d4").opacity(0.75))
+                .frame(height: 2)
+        }
+        .padding(.top, 10)
+        .padding(.bottom, 5)
+    }
+}
+
 struct HandReferenceRow: View {
     let title: String
     let description: String
     let score: String
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 5) {
-            HStack {
+        HStack(alignment: .center) {
+            VStack(alignment: .leading, spacing: 5) {
                 Text(title)
                     .font(.headline)
                     .foregroundColor(.white)
-                Spacer()
-                Text(score)
-                    .font(.headline)
-                    .foregroundColor(.white)
+                
+                // Split description and example
+                if let exampleRange = description.range(of: "(e.g.,") {
+                    let descriptionText = String(description[..<exampleRange.lowerBound]).trimmingCharacters(in: .whitespaces)
+                    let exampleText = String(description[exampleRange.lowerBound...]).trimmingCharacters(in: .whitespaces)
+                    
+                    Text(descriptionText)
+                        .font(.subheadline)
+                        .foregroundColor(.white.opacity(0.8))
+                    
+                    Text(exampleText)
+                        .font(.subheadline)
+                        .foregroundColor(.white.opacity(0.8))
+                } else {
+                    Text(description)
+                        .font(.subheadline)
+                        .foregroundColor(.white.opacity(0.8))
+                }
             }
-            Text(description)
-                .font(.subheadline)
-                .foregroundColor(.white.opacity(0.8))
+            
+            Spacer()
+            
+            Text(score)
+                .font(.system(size: 20))
+                .fontWeight(.bold)
+                .foregroundColor(.white)
         }
     }
 }

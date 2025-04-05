@@ -323,20 +323,31 @@ private func checkGameOver() {
 ### 6. Hand Recognition System
 
 #### Hand Types
-- Pair
-- Three of a Kind
-- Straight
-- Flush
-- Full House
-- Four of a Kind
-- Straight Flush
-- Royal Flush
+- Pair (15 points)
+- Mini Straight (25 points)
+- Mini Flush (30 points)
+- Mini Straight Flush (35 points)
+- Mini Royal Flush (40 points)
+- Three of a Kind (45 points)
+- Two Pair (50 points)
+- Nearly Straight (55 points)
+- Nearly Flush (60 points)
+- Nearly Straight Flush (65 points)
+- Nearly Royal Flush (70 points)
+- Four of a Kind (75 points)
+- Straight (80 points)
+- Flush (85 points)
+- Full House (90 points)
+- Straight Flush (95 points)
+- Royal Flush (100 points)
 
 #### Validation Logic
 - Real-time hand checking
 - Score calculation
 - Hand ranking system
 - Visual feedback
+- Prioritized hand detection (higher-ranking hands detected before lower-ranking ones)
+- Proper handling of overlapping hand types (e.g., straight flush detected before flush)
 
 ### 7. Scoring System
 
@@ -358,6 +369,7 @@ class GameState: ObservableObject {
 - High score tracking
 - Persistent storage
 - Real-time updates
+- Comprehensive scoring for all hand types including mini straight flushes and nearly straight flushes
 
 ### 8. Animation System
 
