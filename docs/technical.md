@@ -3,7 +3,7 @@
 ## Project Technical Specifications
 
 ### Development Environment
-- **Platform**: iOS 15.0+
+- **Platform**: iOS 15.0+ (with enhanced features for iOS 18.0+)
 - **Language**: Swift 5.5+
 - **IDE**: Xcode 13.0+
 - **UI Framework**: SwiftUI
@@ -16,6 +16,7 @@ PokerSlam/
 ├── Views/                 # SwiftUI Views
 │   ├── GameView.swift     # Main game interface
 │   ├── Components/        # Reusable UI components
+│   │   ├── SharedUI.swift # Shared UI components including MeshGradientBackground
 │   │   ├── ConnectionLineView.swift # Connection line rendering
 │   │   └── ConnectionLinesLayer.swift # Connection lines management
 │   └── ...
@@ -26,6 +27,7 @@ PokerSlam/
 │   ├── AnchorPoint.swift # Anchor point for connections
 │   └── ...
 ├── Extensions/          # Swift Extensions
+│   └── Color+Hex.swift  # Color extension for hex color support
 ├── Resources/           # Assets and Resources
 └── Tests/               # Test Suites
 ```
@@ -237,6 +239,24 @@ struct ConnectionLinesLayer: View {
 - Supports animation state management
 - Accounts for card rounded corners
 
+#### Connection Graph System
+```swift
+private struct ConnectionGraph {
+    var nodes: Set<ConnectionNode>
+    var edges: Set<ConnectionEdge>
+    
+    func findMinimumSpanningTree() -> Set<ConnectionEdge> {
+        // Use Kruskal's algorithm to find the minimum spanning tree
+        // that minimizes diagonal connections
+    }
+}
+```
+- Creates a graph representation of card connections
+- Uses Kruskal's algorithm for minimum spanning tree
+- Prioritizes straight connections over diagonal ones
+- Optimizes connection paths between selected cards
+- Ensures all cards are connected with minimal lines
+
 ### 4. Card Shifting System
 
 #### Shifting Logic
@@ -357,6 +377,98 @@ class GameState: ObservableObject {
 - Position updates
 - Layout changes
 
+### 9. Mesh Gradient Background System
+
+#### MeshGradientBackground
+```swift
+struct MeshGradientBackground: View {
+    // MARK: - Types
+    
+    /// Represents the different positions for the mesh gradient animation
+    private enum MeshPosition {
+        case first
+        case second
+        case third
+        case fourth
+    }
+    
+    // MARK: - Properties
+    
+    @State private var currentPosition: MeshPosition = .first
+    
+    private let gradientColors: [Color] = [
+        Color(hex: "#260846"),
+        Color(hex: "#35088A"),
+        Color(hex: "#12196F"),
+        Color(hex: "#3E00B9"),
+        Color(hex: "#0D092B"),
+        Color(hex: "#132A73"),
+        Color(hex: "#260846"),
+        Color(hex: "#1A196A"),
+        Color(hex: "#12196F")
+    ]
+    
+    private let backgroundColor = Color(hex: "#0D092B")
+    
+    // MARK: - Position Arrays
+    
+    private let firstPosition: [SIMD2<Float>] = [
+        SIMD2<Float>(0.0, 0.0), SIMD2<Float>(0.25, 0.0), SIMD2<Float>(1.0, 0.0),
+        SIMD2<Float>(0.0, 0.5), SIMD2<Float>(0.25, 0.25), SIMD2<Float>(1.0, 0.5),
+        SIMD2<Float>(0.0, 1.0), SIMD2<Float>(0.75, 1.0), SIMD2<Float>(1.0, 1.0)
+    ]
+    
+    // Additional position arrays...
+    
+    var body: some View {
+        if #available(iOS 18.0, *) {
+            MeshGradient(
+                width: 3,
+                height: 3,
+                points: currentPoints,
+                colors: gradientColors,
+                background: backgroundColor,
+                smoothsColors: true
+            )
+            .ignoresSafeArea()
+            .onAppear {
+                cyclePosition()
+            }
+        } else {
+            // Fallback for iOS versions before 18.0
+            LinearGradient(
+                colors: gradientColors,
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            .ignoresSafeArea()
+        }
+    }
+    
+    private func cyclePosition() {
+        withAnimation(.easeInOut(duration: 5)) {
+            switch currentPosition {
+            case .first: currentPosition = .second
+            case .second: currentPosition = .fourth
+            case .third: currentPosition = .first
+            case .fourth: currentPosition = .third
+            }
+        }
+        
+        // Schedule the next animation
+        DispatchQueue.main.asyncAfter(deadline: .now() + 5) {
+            cyclePosition()
+        }
+    }
+}
+```
+- Uses iOS 18.0+ MeshGradient for advanced visual effects
+- Implements position-based animation with four distinct positions
+- Provides fallback to LinearGradient for earlier iOS versions
+- Uses SIMD2<Float> for efficient vector operations
+- Supports customizable animation timing and curves
+- Implements recursive animation cycle for continuous motion
+
 ## Established Patterns
 
 ### 1. View Composition Pattern
@@ -446,6 +558,31 @@ VStack(spacing: 0) {
 - UI synchronization
 - Performance optimization
 
+### 6. Animation Pattern
+
+#### Position-Based Animation
+```swift
+private func cyclePosition() {
+    withAnimation(.easeInOut(duration: 5)) {
+        switch currentPosition {
+        case .first: currentPosition = .second
+        case .second: currentPosition = .fourth
+        case .third: currentPosition = .first
+        case .fourth: currentPosition = .third
+        }
+    }
+    
+    // Schedule the next animation
+    DispatchQueue.main.asyncAfter(deadline: .now() + 5) {
+        cyclePosition()
+    }
+}
+```
+- Position-based state transitions
+- Recursive animation scheduling
+- Customizable timing and curves
+- Continuous animation cycles
+
 ## Technical Requirements
 
 ### 1. Performance Requirements
@@ -465,6 +602,7 @@ VStack(spacing: 0) {
 - Dark mode support
 - Dynamic type
 - Accessibility features
+- iOS 18.0+ feature detection
 
 ### 4. Testing Requirements
 - Unit test coverage > 80%
@@ -491,6 +629,7 @@ VStack(spacing: 0) {
 - Efficient algorithms
 - Resource management
 - Cache utilization
+- SIMD2 for vector operations
 
 ### 4. Security
 - Data validation
