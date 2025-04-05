@@ -30,6 +30,114 @@ private struct GridPosition: Hashable {
     }
 }
 
+/// Represents a node in the connection graph
+private struct ConnectionNode: Hashable {
+    let cardId: UUID
+    let position: (row: Int, col: Int)
+    
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(cardId)
+    }
+    
+    static func == (lhs: ConnectionNode, rhs: ConnectionNode) -> Bool {
+        return lhs.cardId == rhs.cardId
+    }
+}
+
+/// Represents an edge in the connection graph
+private struct ConnectionEdge: Hashable {
+    let from: ConnectionNode
+    let to: ConnectionNode
+    let weight: Int // Lower weight means higher priority (straight connections have lower weight)
+    let isStraight: Bool
+    
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(from.cardId)
+        hasher.combine(to.cardId)
+    }
+    
+    static func == (lhs: ConnectionEdge, rhs: ConnectionEdge) -> Bool {
+        return lhs.from.cardId == rhs.from.cardId && lhs.to.cardId == rhs.to.cardId
+    }
+}
+
+/// Represents a graph of possible connections between cards
+private struct ConnectionGraph {
+    var nodes: Set<ConnectionNode>
+    var edges: Set<ConnectionEdge>
+    
+    init(nodes: Set<ConnectionNode>, edges: Set<ConnectionEdge>) {
+        self.nodes = nodes
+        self.edges = edges
+    }
+    
+    /// Finds the minimum spanning tree that minimizes diagonal connections
+    func findMinimumSpanningTree() -> Set<ConnectionEdge> {
+        // Use Kruskal's algorithm to find the minimum spanning tree
+        var result: Set<ConnectionEdge> = []
+        var parent: [UUID: UUID] = [:]
+        var rank: [UUID: Int] = [:]
+        
+        // Initialize the disjoint set
+        for node in nodes {
+            parent[node.cardId] = node.cardId
+            rank[node.cardId] = 0
+        }
+        
+        // Sort edges by weight (straight connections first)
+        let sortedEdges = edges.sorted { $0.weight < $1.weight }
+        
+        // Process each edge
+        for edge in sortedEdges {
+            let fromId = edge.from.cardId
+            let toId = edge.to.cardId
+            
+            // Find the root of the sets containing from and to
+            let fromRoot = findRoot(of: fromId, in: &parent)
+            let toRoot = findRoot(of: toId, in: &parent)
+            
+            // If they're in different sets, add the edge and union the sets
+            if fromRoot != toRoot {
+                result.insert(edge)
+                union(fromRoot, toRoot, in: &parent, rank: &rank)
+            }
+        }
+        
+        return result
+    }
+    
+    /// Finds the root of the set containing the given node
+    private func findRoot(of nodeId: UUID, in parent: inout [UUID: UUID]) -> UUID {
+        if parent[nodeId] == nodeId {
+            return nodeId
+        }
+        
+        // Path compression
+        parent[nodeId] = findRoot(of: parent[nodeId]!, in: &parent)
+        return parent[nodeId]!
+    }
+    
+    /// Unions two sets
+    private func union(_ x: UUID, _ y: UUID, in parent: inout [UUID: UUID], rank: inout [UUID: Int]) {
+        let xRoot = findRoot(of: x, in: &parent)
+        let yRoot = findRoot(of: y, in: &parent)
+        
+        if xRoot == yRoot {
+            return
+        }
+        
+        // Union by rank
+        if rank[xRoot]! < rank[yRoot]! {
+            parent[xRoot] = yRoot
+        } else if rank[xRoot]! > rank[yRoot]! {
+            parent[yRoot] = xRoot
+        } else {
+            parent[yRoot] = xRoot
+            rank[xRoot]! += 1
+        }
+    }
+}
+
 extension Array {
     func combinations(ofCount count: Int) -> [[Element]] {
         guard count > 0 && count <= self.count else { return [] }
@@ -269,10 +377,10 @@ final class GameViewModel: ObservableObject {
     private func updateConnections() {
         connections.removeAll()
         
-        // Create connections between consecutive selected cards based on selection order
+        // If we have less than 2 cards selected, no connections needed
         guard selectionOrder.count >= 2 else { return }
         
-        // First, create a map of card positions for quick lookup
+        // Create a map of card positions for quick lookup
         var cardPositionMap: [UUID: (row: Int, col: Int)] = [:]
         for position in cardPositions {
             cardPositionMap[position.card.id] = (position.currentRow, position.currentCol)
@@ -281,188 +389,248 @@ final class GameViewModel: ObservableObject {
         // Create a set of all selected card IDs for quick lookup
         let selectedCardIds = Set(selectedCards.map { $0.id })
         
-        // For each card in the selection order, find the best adjacent card to connect to
-        for i in 0..<(selectionOrder.count - 1) {
-            let fromCard = selectionOrder[i]
-            let toCard = selectionOrder[i + 1]
+        // Create the connection graph
+        let graph = createConnectionGraph(
+            cardPositionMap: cardPositionMap,
+            selectedCardIds: selectedCardIds
+        )
+        
+        // Find the minimum spanning tree that minimizes diagonal connections
+        let optimalConnections = graph.findMinimumSpanningTree()
+        
+        // Add the optimal connections
+        for edge in optimalConnections {
+            let fromCard = selectionOrder.first { $0.id == edge.from.cardId }!
+            let toCard = selectionOrder.first { $0.id == edge.to.cardId }!
             
-            // Skip if we don't have position information for either card
-            guard let fromPos = cardPositionMap[fromCard.id],
-                  let toPos = cardPositionMap[toCard.id] else {
-                continue
-            }
+            // Determine anchor points for the connection
+            let (fromAnchor, toAnchor) = determineAnchorPoints(
+                from: edge.from.position,
+                to: edge.to.position
+            )
             
-            // Check if the cards are directly adjacent
-            if isAdjacent(position1: fromPos, position2: toPos) {
-                // If adjacent, create a direct connection
-                let (fromAnchor, toAnchor) = determineAnchorPoints(
-                    from: fromPos,
-                    to: toPos
-                )
-                
-                connections.append(Connection(
-                    fromCard: fromCard,
-                    toCard: toCard,
-                    fromPosition: fromAnchor,
-                    toPosition: toAnchor
-                ))
-            } else {
-                // If not adjacent, find the best adjacent card to connect to
-                if let bestCard = findBestAdjacentCard(
-                    from: fromCard,
-                    to: toCard,
-                    cardPositionMap: cardPositionMap,
-                    selectedCardIds: selectedCardIds
-                ) {
-                    if let bestPos = cardPositionMap[bestCard.id] {
-                        let (fromAnchor, toAnchor) = determineAnchorPoints(
-                            from: fromPos,
-                            to: bestPos
-                        )
-                        
-                        connections.append(Connection(
-                            fromCard: fromCard,
-                            toCard: bestCard,
-                            fromPosition: fromAnchor,
-                            toPosition: toAnchor
-                        ))
-                    }
-                }
-            }
+            // Add the connection
+            connections.append(Connection(
+                fromCard: fromCard,
+                toCard: toCard,
+                fromPosition: fromAnchor,
+                toPosition: toAnchor
+            ))
         }
         
-        // Ensure all selected cards are connected to at least one other card
-        ensureAllCardsConnected(
+        // Replace diagonal connections with straight paths where possible
+        replaceDiagonalWithStraightPaths(
+            cardPositionMap: cardPositionMap,
+            selectedCardIds: selectedCardIds
+        )
+        
+        // Validate that all cards have at least one connection
+        validateAllCardsConnected(
             cardPositionMap: cardPositionMap,
             selectedCardIds: selectedCardIds
         )
     }
     
-    /// Finds the best adjacent card to connect to when the target card is not adjacent
-    private func findBestAdjacentCard(
-        from sourceCard: Card,
-        to targetCard: Card,
+    /// Creates a graph of possible connections between selected cards
+    private func createConnectionGraph(
         cardPositionMap: [UUID: (row: Int, col: Int)],
         selectedCardIds: Set<UUID>
-    ) -> Card? {
-        guard let sourcePos = cardPositionMap[sourceCard.id],
-              let targetPos = cardPositionMap[targetCard.id] else {
-            return nil
+    ) -> ConnectionGraph {
+        var nodes: Set<ConnectionNode> = []
+        var edges: Set<ConnectionEdge> = []
+        
+        // Create nodes for each selected card
+        for card in selectionOrder {
+            guard let position = cardPositionMap[card.id] else { continue }
+            nodes.insert(ConnectionNode(cardId: card.id, position: position))
         }
         
-        // Get all selected cards except the source and target cards
-        let otherCards = selectionOrder.filter { 
-            $0.id != sourceCard.id && 
-            $0.id != targetCard.id && 
-            selectedCardIds.contains($0.id)
+        // Create edges for all possible connections
+        for i in 0..<selectionOrder.count {
+            let fromCard = selectionOrder[i]
+            guard let fromPosition = cardPositionMap[fromCard.id] else { continue }
+            let fromNode = ConnectionNode(cardId: fromCard.id, position: fromPosition)
+            
+            for j in (i+1)..<selectionOrder.count {
+                let toCard = selectionOrder[j]
+                guard let toPosition = cardPositionMap[toCard.id] else { continue }
+                let toNode = ConnectionNode(cardId: toCard.id, position: toPosition)
+                
+                // Check if cards are adjacent
+                if isAdjacent(position1: fromPosition, position2: toPosition) {
+                    // Determine if this is a straight connection
+                    let isStraight = isStraightConnection(from: fromPosition, to: toPosition)
+                    
+                    // Create the edge with appropriate weight (straight connections have lower weight)
+                    let weight = isStraight ? 0 : 1
+                    edges.insert(ConnectionEdge(
+                        from: fromNode,
+                        to: toNode,
+                        weight: weight,
+                        isStraight: isStraight
+                    ))
+                }
+            }
         }
         
-        // First, look for cards in the same column as the target card
-        let sameColumnCards = otherCards.filter { card in
-            guard let pos = cardPositionMap[card.id] else { return false }
-            return pos.col == targetPos.col && isAdjacent(position1: sourcePos, position2: pos)
-        }
-        
-        if let firstSameColumnCard = sameColumnCards.first {
-            return firstSameColumnCard
-        }
-        
-        // Next, look for cards in the same row as the target card
-        let sameRowCards = otherCards.filter { card in
-            guard let pos = cardPositionMap[card.id] else { return false }
-            return pos.row == targetPos.row && isAdjacent(position1: sourcePos, position2: pos)
-        }
-        
-        if let firstSameRowCard = sameRowCards.first {
-            return firstSameRowCard
-        }
-        
-        // Finally, look for any adjacent cards
-        let adjacentCards = otherCards.filter { card in
-            guard let pos = cardPositionMap[card.id] else { return false }
-            return isAdjacent(position1: sourcePos, position2: pos)
-        }
-        
-        return adjacentCards.first
+        return ConnectionGraph(nodes: nodes, edges: edges)
     }
     
-    /// Ensures all selected cards are connected to at least one other card
-    private func ensureAllCardsConnected(
+    /// Replaces diagonal connections with straight paths where possible
+    private func replaceDiagonalWithStraightPaths(
         cardPositionMap: [UUID: (row: Int, col: Int)],
         selectedCardIds: Set<UUID>
     ) {
-        // Create a set of cards that already have connections
-        var connectedCardIds = Set<UUID>()
+        // Find all diagonal connections
+        var diagonalConnections: [(connection: Connection, fromPos: (row: Int, col: Int), toPos: (row: Int, col: Int))] = []
+        
         for connection in connections {
-            connectedCardIds.insert(connection.fromCard.id)
-            connectedCardIds.insert(connection.toCard.id)
+            guard let fromPos = cardPositionMap[connection.fromCard.id],
+                  let toPos = cardPositionMap[connection.toCard.id] else {
+                continue
+            }
+            
+            let isStraight = isStraightConnection(from: fromPos, to: toPos)
+            if !isStraight {
+                diagonalConnections.append((connection: connection, fromPos: fromPos, toPos: toPos))
+            }
+        }
+        
+        // For each diagonal connection, check if a straight path is possible
+        for diagonalConnection in diagonalConnections {
+            let fromCard = diagonalConnection.connection.fromCard
+            let toCard = diagonalConnection.connection.toCard
+            let fromPos = diagonalConnection.fromPos
+            let toPos = diagonalConnection.toPos
+            
+            // Check if there's a card in the same row or column that could form a straight path
+            let possibleIntermediateCards = selectionOrder.filter { card in
+                guard let pos = cardPositionMap[card.id],
+                      card.id != fromCard.id && card.id != toCard.id else {
+                    return false
+                }
+                
+                // Check if the card is in the same row or column as either the from or to card
+                let inSameRowAsFrom = pos.row == fromPos.row
+                let inSameColAsFrom = pos.col == fromPos.col
+                let inSameRowAsTo = pos.row == toPos.row
+                let inSameColAsTo = pos.col == toPos.col
+                
+                // Check if the card is adjacent to both the from and to cards
+                let adjacentToFrom = isAdjacent(position1: fromPos, position2: pos)
+                let adjacentToTo = isAdjacent(position1: toPos, position2: pos)
+                
+                return (inSameRowAsFrom || inSameColAsFrom || inSameRowAsTo || inSameColAsTo) &&
+                       adjacentToFrom && adjacentToTo
+            }
+            
+            // If we found possible intermediate cards, replace the diagonal connection with straight ones
+            if !possibleIntermediateCards.isEmpty {
+                // Choose the best intermediate card (prefer one that forms straight connections)
+                let bestIntermediateCard = possibleIntermediateCards.first!
+                guard let intermediatePos = cardPositionMap[bestIntermediateCard.id] else { continue }
+                
+                // Remove the diagonal connection
+                connections.removeAll { $0.id == diagonalConnection.connection.id }
+                
+                // Add two straight connections
+                let (fromAnchor1, toAnchor1) = determineAnchorPoints(
+                    from: fromPos,
+                    to: intermediatePos
+                )
+                
+                let (fromAnchor2, toAnchor2) = determineAnchorPoints(
+                    from: intermediatePos,
+                    to: toPos
+                )
+                
+                connections.append(Connection(
+                    fromCard: fromCard,
+                    toCard: bestIntermediateCard,
+                    fromPosition: fromAnchor1,
+                    toPosition: toAnchor1
+                ))
+                
+                connections.append(Connection(
+                    fromCard: bestIntermediateCard,
+                    toCard: toCard,
+                    fromPosition: fromAnchor2,
+                    toPosition: toAnchor2
+                ))
+            }
+        }
+    }
+    
+    /// Validates that all selected cards have at least one connection
+    private func validateAllCardsConnected(
+        cardPositionMap: [UUID: (row: Int, col: Int)],
+        selectedCardIds: Set<UUID>
+    ) {
+        // Count how many connections each card has
+        var connectionCounts: [UUID: Int] = [:]
+        for cardId in selectedCardIds {
+            connectionCounts[cardId] = 0
+        }
+        
+        for connection in connections {
+            connectionCounts[connection.fromCard.id] = (connectionCounts[connection.fromCard.id] ?? 0) + 1
+            connectionCounts[connection.toCard.id] = (connectionCounts[connection.toCard.id] ?? 0) + 1
         }
         
         // Find cards that don't have any connections
-        let unconnectedCards = selectionOrder.filter { !connectedCardIds.contains($0.id) }
+        let unconnectedCards = selectionOrder.filter { connectionCounts[$0.id] ?? 0 == 0 }
         
         // For each unconnected card, find the best card to connect to
         for card in unconnectedCards {
             guard let cardPos = cardPositionMap[card.id] else { continue }
             
             // Find all adjacent selected cards
-            let adjacentCards = selectionOrder.filter { otherCard in
-                guard otherCard.id != card.id,
-                      let otherPos = cardPositionMap[otherCard.id] else {
-                    return false
+            var possibleConnections: [(card: Card, isStraight: Bool)] = []
+            
+            for otherCard in selectionOrder {
+                let otherCardId = otherCard.id
+                
+                // Skip if it's the same card
+                if otherCardId == card.id {
+                    continue
                 }
-                return isAdjacent(position1: cardPos, position2: otherPos)
+                
+                guard let otherPos = cardPositionMap[otherCardId] else { continue }
+                
+                // Check if cards are adjacent
+                if isAdjacent(position1: cardPos, position2: otherPos) {
+                    // Determine if this is a straight connection
+                    let isStraight = isStraightConnection(from: cardPos, to: otherPos)
+                    
+                    possibleConnections.append((card: otherCard, isStraight: isStraight))
+                }
             }
             
-            // If we found adjacent cards, connect to the first one
-            if let bestCard = adjacentCards.first,
-               let bestPos = cardPositionMap[bestCard.id] {
-                let (fromAnchor, toAnchor) = determineAnchorPoints(
-                    from: cardPos,
-                    to: bestPos
-                )
+            // If we found possible connections, choose the best one
+            if !possibleConnections.isEmpty {
+                // Prioritize straight connections over diagonal ones
+                let sortedConnections = possibleConnections.sorted { $0.isStraight && !$1.isStraight }
                 
-                connections.append(Connection(
-                    fromCard: card,
-                    toCard: bestCard,
-                    fromPosition: fromAnchor,
-                    toPosition: toAnchor
-                ))
+                if let bestConnection = sortedConnections.first {
+                    let bestCard = bestConnection.card
+                    guard let bestPos = cardPositionMap[bestCard.id] else { continue }
+                    
+                    // Determine anchor points for the connection
+                    let (fromAnchor, toAnchor) = determineAnchorPoints(
+                        from: cardPos,
+                        to: bestPos
+                    )
+                    
+                    // Add the connection
+                    connections.append(Connection(
+                        fromCard: card,
+                        toCard: bestCard,
+                        fromPosition: fromAnchor,
+                        toPosition: toAnchor
+                    ))
+                }
             }
         }
-    }
-    
-    /// Determines the appropriate anchor points for connecting two cards
-    private func determineAnchorPoints(
-        from: (row: Int, col: Int),
-        to: (row: Int, col: Int)
-    ) -> (AnchorPoint.Position, AnchorPoint.Position) {
-        // Same column
-        if from.col == to.col {
-            return from.row < to.row ? 
-                (.bottom, .top) : 
-                (.top, .bottom)
-        }
-        
-        // Same row
-        if from.row == to.row {
-            return from.col < to.col ? 
-                (.right, .left) : 
-                (.left, .right)
-        }
-        
-        // Diagonal
-        let isDiagonalUp = from.row > to.row
-        let isDiagonalRight = from.col < to.col
-        
-        return (
-            isDiagonalUp ? 
-                (isDiagonalRight ? .topRight : .topLeft) : 
-                (isDiagonalRight ? .bottomRight : .bottomLeft),
-            isDiagonalUp ? 
-                (isDiagonalRight ? .bottomLeft : .bottomRight) : 
-                (isDiagonalRight ? .topLeft : .topRight)
-        )
     }
     
     /// Plays the currently selected hand and updates the game state
@@ -775,5 +943,46 @@ final class GameViewModel: ObservableObject {
         lastPlayedHand = nil
         setupDeck()
         dealInitialCards()
+    }
+    
+    /// Determines the appropriate anchor points for connecting two cards
+    private func determineAnchorPoints(
+        from: (row: Int, col: Int),
+        to: (row: Int, col: Int)
+    ) -> (AnchorPoint.Position, AnchorPoint.Position) {
+        // Same column
+        if from.col == to.col {
+            return from.row < to.row ? 
+                (.bottom, .top) : 
+                (.top, .bottom)
+        }
+        
+        // Same row
+        if from.row == to.row {
+            return from.col < to.col ? 
+                (.right, .left) : 
+                (.left, .right)
+        }
+        
+        // Diagonal
+        let isDiagonalUp = from.row > to.row
+        let isDiagonalRight = from.col < to.col
+        
+        return (
+            isDiagonalUp ? 
+                (isDiagonalRight ? .topRight : .topLeft) : 
+                (isDiagonalRight ? .bottomRight : .bottomLeft),
+            isDiagonalUp ? 
+                (isDiagonalRight ? .bottomLeft : .bottomRight) : 
+                (isDiagonalRight ? .topLeft : .topRight)
+        )
+    }
+    
+    /// Determines if a connection between two positions is straight (same row or column) or diagonal
+    private func isStraightConnection(
+        from: (row: Int, col: Int),
+        to: (row: Int, col: Int)
+    ) -> Bool {
+        return from.row == to.row || from.col == to.col
     }
 }
