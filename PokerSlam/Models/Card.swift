@@ -8,10 +8,10 @@ enum Suit: String, CaseIterable, Hashable {
     
     var color: String {
         switch self {
-        case .hearts: return "#C02D40"
-        case .diamonds: return "#CEAB27"
-        case .clubs: return "#2875BA"
-        case .spades: return "#E66523"
+        case .hearts: return "#D5602B"
+        case .diamonds: return "#50813A"
+        case .clubs: return "#4884D3"
+        case .spades: return "#AAAAAA"
         }
     }
 }

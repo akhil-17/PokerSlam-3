@@ -24,7 +24,7 @@ struct MeshGradientBackground: View {
         Color(hex: "#35088A"),
         Color(hex: "#12196F"),
         Color(hex: "#3E00B9"),
-        Color(hex: "#0D092B"),
+        Color(hex: "#8053DF"),
         Color(hex: "#132A73"),
         Color(hex: "#260846"),
         Color(hex: "#1A196A"),
