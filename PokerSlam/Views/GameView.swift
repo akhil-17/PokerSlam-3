@@ -178,9 +178,15 @@ private struct GameContainer: View {
                                 Text("Play Again")
                                     .font(.headline)
                                     .foregroundColor(.white)
-                                    .frame(maxWidth: .infinity)
-                                    .padding()
-                                    .background(Color.black.opacity(0.3))
+                                    .frame(maxWidth: .infinity, minHeight: 60) // Increased height to 76
+                                    .padding(.vertical, 4)
+                                    .background(Color(hex: "#0D092B"))
+                                    .preferredColorScheme(.dark)
+                                    .cornerRadius(40)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 40)
+                                            .stroke(.black.opacity(0.5), lineWidth: 1)
+                                    )
                             }
                             .padding()
                         } else if viewModel.selectedCards.count >= 2 {
@@ -189,20 +195,54 @@ private struct GameContainer: View {
                                     viewModel.playHand()
                                 }
                             }) {
-                                Text("Play Hand")
-                                    .font(.headline)
-                                    .foregroundColor(.white)
-                                    .frame(maxWidth: .infinity)
-                                    .padding()
-                                    .background(Color.black.opacity(0.3))
+                                HStack(spacing: 8) {
+                                    Text("Play hand")
+                                        .font(.mainButton)
+                                    
+                                    Image(systemName: "play.fill")
+                                        .font(.system(size: 16))
+                                        .modifier(PulsingAnimationModifier())
+                                }
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity, minHeight: 60) // Increased height to 76
+                                .padding(.vertical, 4)
+                                .background(
+                                    MeshGradientBackground2()
+                                        .mask(
+                                            RoundedRectangle(cornerRadius: 40)
+                                            .stroke(lineWidth: 16)
+                                            .blur(radius: 8)
+                                            .blendMode(.plusDarker)
+                                        )
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 40)
+                                                .stroke(.white.opacity(0.25), lineWidth: 2)
+                                                .blur(radius: 12)
+                                                .blendMode(.multiply)
+                                        )
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 40)
+                                                .stroke(.white.opacity(0.25), lineWidth: 1)
+                                                .blur(radius: 1)
+                                                .blendMode(.hardLight)
+                                        )
+                                )
+                                .background(Color(hex: "#0D092B"))
+                                .cornerRadius(40)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 40)
+                                        .stroke(.black.opacity(0.75), lineWidth: 1)
+                                )
+                                .shadow(color: .black.opacity(0.15), radius: 20, x: 0, y: 20)
+                                .shadow(color: .black.opacity(0.1), radius: 15, x: 0, y: 15)
                             }
-                            .padding()
+                            .padding() // Match the card grid's padding
                         } else {
                             Color.clear
-                                .frame(height: 60) // Approximate height of the buttons with padding
+                                .frame(height: 76) // Increased from 60 to 76 to accommodate taller buttons
                         }
                     }
-                    .frame(height: 60) // Fixed height to prevent layout shifts
+                    .frame(height: 76) // Increased from 60 to 76 to accommodate taller buttons
                     
                     Spacer()
                 }
