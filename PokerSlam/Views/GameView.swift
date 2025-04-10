@@ -166,80 +166,26 @@ private struct GameContainer: View {
                     // Fixed height container for bottom buttons
                     ZStack {
                         if viewModel.isGameOver {
-                            Button(action: {
-                                Task { @MainActor in
-                                    // Update high score if current score is higher
-                                    if viewModel.score > gameState.currentScore {
-                                        gameState.updateCurrentScore(viewModel.score)
+                            PrimaryButton(
+                                title: "Play again",
+                                icon: "arrow.clockwise",
+                                isAnimated: true,
+                                action: {
+                                    Task { @MainActor in
+                                        // Update high score if current score is higher
+                                        if viewModel.score > gameState.currentScore {
+                                            gameState.updateCurrentScore(viewModel.score)
+                                        }
+                                        viewModel.resetGame()
                                     }
-                                    viewModel.resetGame()
                                 }
-                            }) {
-                                Text("Play Again")
-                                    .font(.headline)
-                                    .foregroundColor(.white)
-                                    .frame(maxWidth: .infinity, minHeight: 60) // Increased height to 76
-                                    .padding(.vertical, 4)
-                                    .background(Color(hex: "#0D092B"))
-                                    .preferredColorScheme(.dark)
-                                    .cornerRadius(40)
-                                    .background(
-                                        RoundedRectangle(cornerRadius: 40)
-                                            .stroke(.black.opacity(0.5), lineWidth: 1)
-                                    )
-                            }
-                            .padding()
-                        } else if viewModel.selectedCards.count >= 2 {
-                            Button(action: {
-                                Task { @MainActor in
-                                    viewModel.playHand()
-                                }
-                            }) {
-                                HStack(spacing: 8) {
-                                    Text("Play hand")
-                                        .font(.mainButton)
-                                    
-                                    Image(systemName: "play.fill")
-                                        .font(.system(size: 16))
-                                        .modifier(PulsingAnimationModifier())
-                                }
-                                .foregroundColor(.white)
-                                .frame(maxWidth: .infinity, minHeight: 60) // Increased height to 76
-                                .padding(.vertical, 4)
-                                .background(
-                                    MeshGradientBackground2()
-                                        .mask(
-                                            RoundedRectangle(cornerRadius: 40)
-                                            .stroke(lineWidth: 16)
-                                            .blur(radius: 8)
-                                            .blendMode(.plusDarker)
-                                        )
-                                        .overlay(
-                                            RoundedRectangle(cornerRadius: 40)
-                                                .stroke(.white.opacity(0.25), lineWidth: 2)
-                                                .blur(radius: 12)
-                                                .blendMode(.multiply)
-                                        )
-                                        .overlay(
-                                            RoundedRectangle(cornerRadius: 40)
-                                                .stroke(.white.opacity(0.25), lineWidth: 1)
-                                                .blur(radius: 1)
-                                                .blendMode(.hardLight)
-                                        )
-                                )
-                                .background(Color(hex: "#0D092B"))
-                                .cornerRadius(40)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 40)
-                                        .stroke(.black.opacity(0.75), lineWidth: 1)
-                                )
-                                .shadow(color: .black.opacity(0.15), radius: 20, x: 0, y: 20)
-                                .shadow(color: .black.opacity(0.1), radius: 15, x: 0, y: 15)
-                            }
-                            .padding() // Match the card grid's padding
+                            )
                         } else {
-                            Color.clear
-                                .frame(height: 76) // Increased from 60 to 76 to accommodate taller buttons
+                            // Use a custom view to handle the animation
+                            PlayHandButtonContainer(
+                                viewModel: viewModel,
+                                gameState: gameState
+                            )
                         }
                     }
                     .frame(height: 76) // Increased from 60 to 76 to accommodate taller buttons
@@ -546,6 +492,43 @@ struct HandReferenceRow: View {
                 .font(.system(size: 20))
                 .fontWeight(.bold)
                 .foregroundColor(.white)
+        }
+    }
+}
+
+/// A container view that handles the animation of the "Play hand" button
+struct PlayHandButtonContainer: View {
+    @ObservedObject var viewModel: GameViewModel
+    @ObservedObject var gameState: GameState
+    @State private var showButton: Bool = false
+    
+    var body: some View {
+        ZStack {
+            if showButton {
+                PrimaryButton(
+                    title: "Play hand",
+                    icon: "play.fill",
+                    isAnimated: true,
+                    action: {
+                        Task { @MainActor in
+                            viewModel.playHand()
+                        }
+                    }
+                )
+                .transition(.opacity)
+            } else {
+                Color.clear
+                    .frame(height: 76)
+            }
+        }
+        .onChange(of: viewModel.selectedCards.count) { oldValue, newValue in
+            withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
+                showButton = newValue >= 2
+            }
+        }
+        .onAppear {
+            // Set initial state
+            showButton = viewModel.selectedCards.count >= 2
         }
     }
 }
