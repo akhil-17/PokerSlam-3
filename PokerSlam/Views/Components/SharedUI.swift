@@ -5,19 +5,7 @@ import simd
 /// The gradient continuously animates between different mesh positions
 /// to create a dynamic visual effect.
 struct MeshGradientBackground: View {
-    // MARK: - Types
-    
-    /// Represents the different positions for the mesh gradient animation
-    private enum MeshPosition {
-        case first
-        case second
-        case third
-        case fourth
-    }
-    
     // MARK: - Properties
-    
-    @State private var currentPosition: MeshPosition = .first
     
     private let gradientColors: [Color] = [
         Color(hex: "#260846"),
@@ -33,58 +21,27 @@ struct MeshGradientBackground: View {
     
     private let backgroundColor = Color(hex: "#0D092B")
     
-    // MARK: - Position Arrays
-    
-    private let firstPosition: [SIMD2<Float>] = [
-        SIMD2<Float>(0.0, 0.0), SIMD2<Float>(0.25, 0.0), SIMD2<Float>(1.0, 0.0),
-        SIMD2<Float>(0.0, 0.5), SIMD2<Float>(0.25, 0.25), SIMD2<Float>(1.0, 0.5),
-        SIMD2<Float>(0.0, 1.0), SIMD2<Float>(0.75, 1.0), SIMD2<Float>(1.0, 1.0)
+    // Base positions for the mesh gradient
+    private let basePositions: [SIMD2<Float>] = [
+        SIMD2<Float>(0.0, 0.0), SIMD2<Float>(0.5, 0.0), SIMD2<Float>(1.0, 0.0),
+        SIMD2<Float>(0.0, 0.5), SIMD2<Float>(0.5, 0.5), SIMD2<Float>(1.0, 0.5),
+        SIMD2<Float>(0.0, 1.0), SIMD2<Float>(0.5, 1.0), SIMD2<Float>(1.0, 1.0)
     ]
-    
-    private let secondPosition: [SIMD2<Float>] = [
-        SIMD2<Float>(0.0, 0.0), SIMD2<Float>(0.75, 0.0), SIMD2<Float>(1.0, 0.0),
-        SIMD2<Float>(0.0, 0.5), SIMD2<Float>(0.75, 0.25), SIMD2<Float>(1.0, 0.5),
-        SIMD2<Float>(0.0, 1.0), SIMD2<Float>(0.25, 1.0), SIMD2<Float>(1.0, 1.0)
-    ]
-    
-    private let thirdPosition: [SIMD2<Float>] = [
-        SIMD2<Float>(0.0, 0.0), SIMD2<Float>(0.75, 0.0), SIMD2<Float>(1.0, 0.0),
-        SIMD2<Float>(0.0, 0.5), SIMD2<Float>(0.25, 0.75), SIMD2<Float>(1.0, 0.5),
-        SIMD2<Float>(0.0, 1.0), SIMD2<Float>(0.25, 1.0), SIMD2<Float>(1.0, 1.0)
-    ]
-    
-    private let fourthPosition: [SIMD2<Float>] = [
-        SIMD2<Float>(0.0, 0.0), SIMD2<Float>(0.25, 0.0), SIMD2<Float>(1.0, 0.0),
-        SIMD2<Float>(0.0, 0.5), SIMD2<Float>(0.75, 0.75), SIMD2<Float>(1.0, 0.5),
-        SIMD2<Float>(0.0, 1.0), SIMD2<Float>(0.75, 1.0), SIMD2<Float>(1.0, 1.0)
-    ]
-    
-    // MARK: - Computed Properties
-    
-    private var currentPoints: [SIMD2<Float>] {
-        switch currentPosition {
-        case .first: return firstPosition
-        case .second: return secondPosition
-        case .third: return thirdPosition
-        case .fourth: return fourthPosition
-        }
-    }
     
     // MARK: - Body
     
     var body: some View {
         if #available(iOS 18.0, *) {
-            MeshGradient(
-                width: 3,
-                height: 3,
-                points: currentPoints,
-                colors: gradientColors,
-                background: backgroundColor,
-                smoothsColors: true
-            )
-            .ignoresSafeArea()
-            .onAppear {
-                cyclePosition()
+            TimelineView(.animation) { timeline in
+                MeshGradient(
+                    width: 3,
+                    height: 3,
+                    points: animatedPositions(for: timeline.date),
+                    colors: gradientColors,
+                    background: backgroundColor,
+                    smoothsColors: true
+                )
+                .ignoresSafeArea()
             }
         } else {
             // Fallback for iOS versions before 18.0
@@ -99,20 +56,19 @@ struct MeshGradientBackground: View {
     
     // MARK: - Private Methods
     
-    private func cyclePosition() {
-        withAnimation(.easeInOut(duration: 5)) {
-            switch currentPosition {
-            case .first: currentPosition = .second
-            case .second: currentPosition = .fourth
-            case .third: currentPosition = .first
-            case .fourth: currentPosition = .third
-            }
-        }
+    private func animatedPositions(for date: Date) -> [SIMD2<Float>] {
+        let phase = CGFloat(date.timeIntervalSince1970)
+        var animatedPositions = basePositions
         
-        // Schedule the next animation
-        DispatchQueue.main.asyncAfter(deadline: .now() + 5) {
-            cyclePosition()
-        }
+        // Animate the middle control points using cosine waves
+        // This creates a flowing, organic animation
+        animatedPositions[1].x = 0.5 + 0.4 * Float(cos(phase))
+        animatedPositions[3].y = 0.5 + 0.3 * Float(cos(phase * 1.1))
+        animatedPositions[4].y = 0.5 - 0.4 * Float(cos(phase * 0.9))
+        animatedPositions[5].y = 0.5 - 0.2 * Float(cos(phase * 0.9))
+        animatedPositions[7].x = 0.5 - 0.4 * Float(cos(phase * 1.2))
+        
+        return animatedPositions
     }
 }
 
@@ -120,19 +76,7 @@ struct MeshGradientBackground: View {
 /// The gradient continuously animates between different mesh positions
 /// to create a dynamic visual effect.
 struct MeshGradientBackground2: View {
-    // MARK: - Types
-    
-    /// Represents the different positions for the mesh gradient animation
-    private enum MeshPosition {
-        case first
-        case second
-        case third
-        case fourth
-    }
-    
     // MARK: - Properties
-    
-    @State private var currentPosition: MeshPosition = .first
     
     private let gradientColors: [Color] = [
         Color(hex: "#D5602B"),
@@ -148,58 +92,27 @@ struct MeshGradientBackground2: View {
     
     private let backgroundColor = Color(hex: "#0D092B")
     
-    // MARK: - Position Arrays
-    
-    private let firstPosition: [SIMD2<Float>] = [
-        SIMD2<Float>(0.00, 0.00), SIMD2<Float>(0.25, 0.00), SIMD2<Float>(1.00, 0.00),
-        SIMD2<Float>(0.00, 0.25), SIMD2<Float>(0.05, 0.05), SIMD2<Float>(1.00, 0.75),
-        SIMD2<Float>(0.00, 1.00), SIMD2<Float>(0.75, 1.00), SIMD2<Float>(1.00, 1.00)
+    // Base positions for the mesh gradient
+    private let basePositions: [SIMD2<Float>] = [
+        SIMD2<Float>(0.0, 0.0), SIMD2<Float>(0.5, 0.0), SIMD2<Float>(1.0, 0.0),
+        SIMD2<Float>(0.0, 0.5), SIMD2<Float>(0.5, 0.5), SIMD2<Float>(1.0, 0.5),
+        SIMD2<Float>(0.0, 1.0), SIMD2<Float>(0.5, 1.0), SIMD2<Float>(1.0, 1.0)
     ]
-    
-    private let secondPosition: [SIMD2<Float>] = [
-        SIMD2<Float>(0.00, 0.00), SIMD2<Float>(0.75, 0.00), SIMD2<Float>(1.00, 0.00),
-        SIMD2<Float>(0.00, 0.75), SIMD2<Float>(0.95, 0.05), SIMD2<Float>(1.00, 0.25),
-        SIMD2<Float>(0.00, 1.00), SIMD2<Float>(0.25, 1.00), SIMD2<Float>(1.00, 1.00)
-    ]
-    
-    private let thirdPosition: [SIMD2<Float>] = [
-        SIMD2<Float>(0.00, 0.00), SIMD2<Float>(0.25, 0.00), SIMD2<Float>(1.00, 0.00),
-        SIMD2<Float>(0.00, 0.25), SIMD2<Float>(0.95, 0.95), SIMD2<Float>(1.00, 0.75),
-        SIMD2<Float>(0.00, 1.00), SIMD2<Float>(0.75, 1.00), SIMD2<Float>(1.00, 1.00)
-    ]
-    
-    private let fourthPosition: [SIMD2<Float>] = [
-        SIMD2<Float>(0.00, 0.00), SIMD2<Float>(0.75, 0.00), SIMD2<Float>(1.00, 0.00),
-        SIMD2<Float>(0.00, 0.75), SIMD2<Float>(0.05, 0.95), SIMD2<Float>(1.00, 0.25),
-        SIMD2<Float>(0.00, 1.00), SIMD2<Float>(0.25, 1.00), SIMD2<Float>(1.00, 1.00)
-    ]
-    
-    // MARK: - Computed Properties
-    
-    private var currentPoints: [SIMD2<Float>] {
-        switch currentPosition {
-        case .first: return firstPosition
-        case .second: return secondPosition
-        case .third: return thirdPosition
-        case .fourth: return fourthPosition
-        }
-    }
     
     // MARK: - Body
     
     var body: some View {
         if #available(iOS 18.0, *) {
-            MeshGradient(
-                width: 3,
-                height: 3,
-                points: currentPoints,
-                colors: gradientColors,
-                background: backgroundColor,
-                smoothsColors: true
-            )
-            .ignoresSafeArea()
-            .onAppear {
-                cyclePosition()
+            TimelineView(.animation) { timeline in
+                MeshGradient(
+                    width: 3,
+                    height: 3,
+                    points: animatedPositions(for: timeline.date),
+                    colors: gradientColors,
+                    background: backgroundColor,
+                    smoothsColors: true
+                )
+                .ignoresSafeArea()
             }
         } else {
             // Fallback for iOS versions before 18.0
@@ -214,20 +127,19 @@ struct MeshGradientBackground2: View {
     
     // MARK: - Private Methods
     
-    private func cyclePosition() {
-        withAnimation(.easeInOut(duration: 5)) {
-            switch currentPosition {
-            case .first: currentPosition = .second
-            case .second: currentPosition = .third
-            case .third: currentPosition = .fourth
-            case .fourth: currentPosition = .first
-            }
-        }
+    private func animatedPositions(for date: Date) -> [SIMD2<Float>] {
+        let phase = CGFloat(date.timeIntervalSince1970)
+        var animatedPositions = basePositions
         
-        // Schedule the next animation
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-            cyclePosition()
-        }
+        // Animate the middle control points using cosine waves
+        // This creates a flowing, organic animation
+        animatedPositions[1].x = 0.5 + 0.4 * Float(cos(phase))
+        animatedPositions[3].y = 0.5 + 0.3 * Float(cos(phase * 1.1))
+        animatedPositions[4].y = 0.5 - 0.4 * Float(cos(phase * 0.9))
+        animatedPositions[5].y = 0.5 - 0.2 * Float(cos(phase * 0.9))
+        animatedPositions[7].x = 0.5 - 0.4 * Float(cos(phase * 1.2))
+        
+        return animatedPositions
     }
 }
 
@@ -553,18 +465,16 @@ struct PrimaryButton: View {
             action()
         }) {
             HStack(spacing: 8) {
-                Text(title)
-                    .font(.mainButton)
+                // Text with mesh gradient effect and sequential animation
+                ButtonTextLabel(text: title)
+                    .transition(TextTransition())
                     .offset(y: isVisible ? 0 : textOffset)
                     .opacity(isVisible ? 1 : 0)
                     .blur(radius: isVisible ? 0 : 5)
                 
                 if let icon = icon {
-                    Image(systemName: icon)
-                        .font(.system(size: 16))
-                        .if(isAnimated) { view in
-                            view.modifier(PulsingAnimationModifier())
-                        }
+                    // Icon with mesh gradient effect
+                    ButtonIconLabel(systemName: icon, isAnimated: isAnimated)
                         .offset(y: isVisible ? 0 : textOffset)
                         .opacity(isVisible ? 1 : 0)
                         .blur(radius: isVisible ? 0 : 5)
@@ -577,20 +487,21 @@ struct PrimaryButton: View {
                 MeshGradientBackground2()
                     .mask(
                         RoundedRectangle(cornerRadius: 40)
-                            .stroke(.white.opacity(0.5), lineWidth: 16)
-                        .blur(radius: 4)
+                            .stroke(.white.opacity(0.60), lineWidth: 16)
+                            .blur(radius: 4)
+                            .blendMode(.overlay)
                     )
                     .overlay(
                         RoundedRectangle(cornerRadius: 40)
                             .stroke(.white.opacity(0.25), lineWidth: 2)
                             .blur(radius: 12)
-                            .blendMode(.overlay)
+                            .blendMode(.hardLight)
                     )
                     .overlay(
                         RoundedRectangle(cornerRadius: 40)
                             .stroke(.white.opacity(0.25), lineWidth: 1)
                             .blur(radius: 1)
-                            .blendMode(.overlay)
+                            .blendMode(.multiply)
                     )
             )
             .background(Color(hex: "#0D092B"))
@@ -611,6 +522,155 @@ struct PrimaryButton: View {
                 }
             }
         }
+    }
+}
+
+/// A view that displays text with a mesh gradient effect
+struct ButtonTextLabel: View {
+    let text: String
+    
+    var body: some View {
+        GlyphAnimatedText(text: text)
+            .font(.mainButton)
+            .foregroundStyle(.clear)
+            .background(
+                TimelineView(.animation) { timeline in
+                    MeshGradient(
+                        width: 3,
+                        height: 3,
+                        points: animatedPositions(for: timeline.date),
+                        colors: [
+                            Color(hex: "#D5602B"),
+                            Color(hex: "#D45F2B"),
+                            Color(hex: "#AAAAAA"),
+                            Color(hex: "#4883D3"),
+                            Color(hex: "#FFD302"),
+                            Color(hex: "#AAAAAA"),
+                            Color(hex: "#4883D3"),
+                            Color(hex: "#50803A"),
+                            Color(hex: "#50803A")
+                        ],
+                        background: Color.clear,
+                        smoothsColors: true
+                    )
+                }
+            )
+            .mask(
+                GlyphAnimatedText(text: text)
+                    .font(.mainButton)
+            )
+    }
+    
+    // Base positions for the mesh gradient
+    private let basePositions: [SIMD2<Float>] = [
+        SIMD2<Float>(0.0, 0.0), SIMD2<Float>(0.5, 0.0), SIMD2<Float>(1.0, 0.0),
+        SIMD2<Float>(0.0, 0.5), SIMD2<Float>(0.5, 0.5), SIMD2<Float>(1.0, 0.5),
+        SIMD2<Float>(0.0, 1.0), SIMD2<Float>(0.5, 1.0), SIMD2<Float>(1.0, 1.0)
+    ]
+    
+    private func animatedPositions(for date: Date) -> [SIMD2<Float>] {
+        let phase = CGFloat(date.timeIntervalSince1970)
+        var animatedPositions = basePositions
+        
+        // Animate the middle control points using cosine waves
+        // This creates a flowing, organic animation
+        animatedPositions[1].x = 0.5 + 0.4 * Float(cos(phase))
+        animatedPositions[3].y = 0.5 + 0.3 * Float(cos(phase * 1.1))
+        animatedPositions[4].y = 0.5 - 0.4 * Float(cos(phase * 0.9))
+        animatedPositions[5].y = 0.5 - 0.2 * Float(cos(phase * 0.9))
+        animatedPositions[7].x = 0.5 - 0.4 * Float(cos(phase * 1.2))
+        
+        return animatedPositions
+    }
+}
+
+/// A view that animates text with a glyph-by-glyph animation
+struct GlyphAnimatedText: View {
+    let text: String
+    @State private var visibleGlyphs: Int = 0
+    
+    var body: some View {
+        HStack(spacing: 0) {
+            ForEach(Array(text.enumerated()), id: \.offset) { index, character in
+                Text(String(character))
+                    .opacity(index < visibleGlyphs ? 1 : 0)
+                    .offset(y: index < visibleGlyphs ? 0 : 20)
+                    .blur(radius: index < visibleGlyphs ? 0 : 5)
+            }
+        }
+        .onAppear {
+            // Animate each glyph sequentially
+            for i in 0..<text.count {
+                DispatchQueue.main.asyncAfter(deadline: .now() + Double(i) * 0.03) {
+                    withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
+                        visibleGlyphs = i + 1
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// A view that displays an SF Symbol with a mesh gradient effect
+struct ButtonIconLabel: View {
+    let systemName: String
+    let isAnimated: Bool
+    
+    var body: some View {
+        Image(systemName: systemName)
+            .font(.system(size: 16))
+            .foregroundStyle(.clear)
+            .background(
+                TimelineView(.animation) { timeline in
+                    MeshGradient(
+                        width: 3,
+                        height: 3,
+                        points: animatedPositions(for: timeline.date),
+                        colors: [
+                            Color(hex: "#D5602B"),
+                            Color(hex: "#D45F2B"),
+                            Color(hex: "#AAAAAA"),
+                            Color(hex: "#4883D3"),
+                            Color(hex: "#FFD302"),
+                            Color(hex: "#AAAAAA"),
+                            Color(hex: "#4883D3"),
+                            Color(hex: "#50803A"),
+                            Color(hex: "#50803A")
+                        ],
+                        background: Color.clear,
+                        smoothsColors: true
+                    )
+                }
+            )
+            .mask(
+                Image(systemName: systemName)
+                    .font(.system(size: 16))
+            )
+            .if(isAnimated) { view in
+                view.modifier(PulsingAnimationModifier())
+            }
+    }
+    
+    // Base positions for the mesh gradient
+    private let basePositions: [SIMD2<Float>] = [
+        SIMD2<Float>(0.0, 0.0), SIMD2<Float>(0.5, 0.0), SIMD2<Float>(1.0, 0.0),
+        SIMD2<Float>(0.0, 0.5), SIMD2<Float>(0.5, 0.5), SIMD2<Float>(1.0, 0.5),
+        SIMD2<Float>(0.0, 1.0), SIMD2<Float>(0.5, 1.0), SIMD2<Float>(1.0, 1.0)
+    ]
+    
+    private func animatedPositions(for date: Date) -> [SIMD2<Float>] {
+        let phase = CGFloat(date.timeIntervalSince1970)
+        var animatedPositions = basePositions
+        
+        // Animate the middle control points using cosine waves
+        // This creates a flowing, organic animation
+        animatedPositions[1].x = 0.5 + 0.4 * Float(cos(phase))
+        animatedPositions[3].y = 0.5 + 0.3 * Float(cos(phase * 1.1))
+        animatedPositions[4].y = 0.5 - 0.4 * Float(cos(phase * 0.9))
+        animatedPositions[5].y = 0.5 - 0.2 * Float(cos(phase * 0.9))
+        animatedPositions[7].x = 0.5 - 0.4 * Float(cos(phase * 1.2))
+        
+        return animatedPositions
     }
 }
 

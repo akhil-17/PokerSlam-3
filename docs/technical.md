@@ -394,26 +394,14 @@ class GameState: ObservableObject {
 #### MeshGradientBackground
 ```swift
 struct MeshGradientBackground: View {
-    // MARK: - Types
-    
-    /// Represents the different positions for the mesh gradient animation
-    private enum MeshPosition {
-        case first
-        case second
-        case third
-        case fourth
-    }
-    
     // MARK: - Properties
-    
-    @State private var currentPosition: MeshPosition = .first
     
     private let gradientColors: [Color] = [
         Color(hex: "#260846"),
         Color(hex: "#35088A"),
         Color(hex: "#12196F"),
         Color(hex: "#3E00B9"),
-        Color(hex: "#0D092B"),
+        Color(hex: "#8053DF"),
         Color(hex: "#132A73"),
         Color(hex: "#260846"),
         Color(hex: "#1A196A"),
@@ -422,29 +410,25 @@ struct MeshGradientBackground: View {
     
     private let backgroundColor = Color(hex: "#0D092B")
     
-    // MARK: - Position Arrays
-    
-    private let firstPosition: [SIMD2<Float>] = [
-        SIMD2<Float>(0.0, 0.0), SIMD2<Float>(0.25, 0.0), SIMD2<Float>(1.0, 0.0),
-        SIMD2<Float>(0.0, 0.5), SIMD2<Float>(0.25, 0.25), SIMD2<Float>(1.0, 0.5),
-        SIMD2<Float>(0.0, 1.0), SIMD2<Float>(0.75, 1.0), SIMD2<Float>(1.0, 1.0)
+    // Base positions for the mesh gradient
+    private let basePositions: [SIMD2<Float>] = [
+        SIMD2<Float>(0.0, 0.0), SIMD2<Float>(0.5, 0.0), SIMD2<Float>(1.0, 0.0),
+        SIMD2<Float>(0.0, 0.5), SIMD2<Float>(0.5, 0.5), SIMD2<Float>(1.0, 0.5),
+        SIMD2<Float>(0.0, 1.0), SIMD2<Float>(0.5, 1.0), SIMD2<Float>(1.0, 1.0)
     ]
-    
-    // Additional position arrays...
     
     var body: some View {
         if #available(iOS 18.0, *) {
-            MeshGradient(
-                width: 3,
-                height: 3,
-                points: currentPoints,
-                colors: gradientColors,
-                background: backgroundColor,
-                smoothsColors: true
-            )
-            .ignoresSafeArea()
-            .onAppear {
-                cyclePosition()
+            TimelineView(.animation) { timeline in
+                MeshGradient(
+                    width: 3,
+                    height: 3,
+                    points: animatedPositions(for: timeline.date),
+                    colors: gradientColors,
+                    background: backgroundColor,
+                    smoothsColors: true
+                )
+                .ignoresSafeArea()
             }
         } else {
             // Fallback for iOS versions before 18.0
@@ -457,29 +441,409 @@ struct MeshGradientBackground: View {
         }
     }
     
-    private func cyclePosition() {
-        withAnimation(.easeInOut(duration: 5)) {
-            switch currentPosition {
-            case .first: currentPosition = .second
-            case .second: currentPosition = .fourth
-            case .third: currentPosition = .first
-            case .fourth: currentPosition = .third
-            }
-        }
+    private func animatedPositions(for date: Date) -> [SIMD2<Float>] {
+        let phase = CGFloat(date.timeIntervalSince1970)
+        var animatedPositions = basePositions
         
-        // Schedule the next animation
-        DispatchQueue.main.asyncAfter(deadline: .now() + 5) {
-            cyclePosition()
-        }
+        // Animate the middle control points using cosine waves
+        // This creates a flowing, organic animation
+        animatedPositions[1].x = 0.5 + 0.4 * Float(cos(phase))
+        animatedPositions[3].y = 0.5 + 0.3 * Float(cos(phase * 1.1))
+        animatedPositions[4].y = 0.5 - 0.4 * Float(cos(phase * 0.9))
+        animatedPositions[5].y = 0.5 - 0.2 * Float(cos(phase * 0.9))
+        animatedPositions[7].x = 0.5 - 0.4 * Float(cos(phase * 1.2))
+        
+        return animatedPositions
     }
 }
 ```
 - Uses iOS 18.0+ MeshGradient for advanced visual effects
-- Implements position-based animation with four distinct positions
+- Implements TimelineView for continuous animation
+- Uses cosine-based animation for organic movement
 - Provides fallback to LinearGradient for earlier iOS versions
 - Uses SIMD2<Float> for efficient vector operations
 - Supports customizable animation timing and curves
-- Implements recursive animation cycle for continuous motion
+
+### 10. Button Animation System
+
+#### PrimaryButton
+```swift
+struct PrimaryButton: View {
+    // MARK: - Properties
+    
+    let title: String
+    let icon: String?
+    let action: () -> Void
+    let isAnimated: Bool
+    @State private var isVisible: Bool = false
+    @State private var textOffset: CGFloat = 20
+    
+    var body: some View {
+        Button(action: {
+            action()
+        }) {
+            HStack(spacing: 8) {
+                // Text with mesh gradient effect and sequential animation
+                ButtonTextLabel(text: title)
+                    .transition(TextTransition())
+                    .offset(y: isVisible ? 0 : textOffset)
+                    .opacity(isVisible ? 1 : 0)
+                    .blur(radius: isVisible ? 0 : 5)
+                
+                if let icon = icon {
+                    // Icon with mesh gradient effect
+                    ButtonIconLabel(systemName: icon, isAnimated: isAnimated)
+                        .offset(y: isVisible ? 0 : textOffset)
+                        .opacity(isVisible ? 1 : 0)
+                        .blur(radius: isVisible ? 0 : 5)
+                }
+            }
+            .foregroundColor(.white)
+            .frame(maxWidth: .infinity, minHeight: 60)
+            .padding(.vertical, 4)
+            .background(
+                MeshGradientBackground2()
+                    .mask(
+                        RoundedRectangle(cornerRadius: 40)
+                            .stroke(.white.opacity(0.60), lineWidth: 16)
+                            .blur(radius: 4)
+                            .blendMode(.overlay)
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 40)
+                            .stroke(.white.opacity(0.25), lineWidth: 2)
+                            .blur(radius: 12)
+                            .blendMode(.hardLight)
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 40)
+                            .stroke(.white.opacity(0.25), lineWidth: 1)
+                            .blur(radius: 1)
+                            .blendMode(.multiply)
+                    )
+            )
+            .background(Color(hex: "#0D092B"))
+            .cornerRadius(40)
+            .background(
+                RoundedRectangle(cornerRadius: 40)
+                    .stroke(.black.opacity(0.75), lineWidth: 1)
+            )
+            .shadow(color: .black.opacity(0.10), radius: 20, x: 0, y: 20)
+        }
+        .padding()
+        .modifier(PrimaryButtonAnimationModifier(action: action))
+    }
+}
+```
+- Implements a primary action button with consistent styling
+- Uses mesh gradient background with masking and overlays
+- Applies sequential text animation with glyph-by-glyph reveal
+- Supports optional icon with mesh gradient effect
+- Implements entrance and exit animations
+- Provides visual feedback for user interactions
+
+#### ButtonTextLabel
+```swift
+struct ButtonTextLabel: View {
+    let text: String
+    
+    var body: some View {
+        GlyphAnimatedText(text: text)
+            .font(.mainButton)
+            .foregroundStyle(.clear)
+            .background(
+                TimelineView(.animation) { timeline in
+                    MeshGradient(
+                        width: 3,
+                        height: 3,
+                        points: animatedPositions(for: timeline.date),
+                        colors: [
+                            Color(hex: "#D5602B"),
+                            Color(hex: "#D45F2B"),
+                            Color(hex: "#AAAAAA"),
+                            Color(hex: "#4883D3"),
+                            Color(hex: "#FFD302"),
+                            Color(hex: "#AAAAAA"),
+                            Color(hex: "#4883D3"),
+                            Color(hex: "#50803A"),
+                            Color(hex: "#50803A")
+                        ],
+                        background: Color.clear,
+                        smoothsColors: true
+                    )
+                }
+            )
+            .mask(
+                GlyphAnimatedText(text: text)
+                    .font(.mainButton)
+            )
+    }
+    
+    // Base positions for the mesh gradient
+    private let basePositions: [SIMD2<Float>] = [
+        SIMD2<Float>(0.0, 0.0), SIMD2<Float>(0.5, 0.0), SIMD2<Float>(1.0, 0.0),
+        SIMD2<Float>(0.0, 0.5), SIMD2<Float>(0.5, 0.5), SIMD2<Float>(1.0, 0.5),
+        SIMD2<Float>(0.0, 1.0), SIMD2<Float>(0.5, 1.0), SIMD2<Float>(1.0, 1.0)
+    ]
+    
+    private func animatedPositions(for date: Date) -> [SIMD2<Float>] {
+        let phase = CGFloat(date.timeIntervalSince1970)
+        var animatedPositions = basePositions
+        
+        // Animate the middle control points using cosine waves
+        // This creates a flowing, organic animation
+        animatedPositions[1].x = 0.5 + 0.4 * Float(cos(phase))
+        animatedPositions[3].y = 0.5 + 0.3 * Float(cos(phase * 1.1))
+        animatedPositions[4].y = 0.5 - 0.4 * Float(cos(phase * 0.9))
+        animatedPositions[5].y = 0.5 - 0.2 * Float(cos(phase * 0.9))
+        animatedPositions[7].x = 0.5 - 0.4 * Float(cos(phase * 1.2))
+        
+        return animatedPositions
+    }
+}
+```
+- Applies mesh gradient effect to text
+- Uses TimelineView for continuous animation
+- Implements cosine-based animation for organic movement
+- Masks the gradient to the text shape
+- Supports customizable animation timing and curves
+
+#### GlyphAnimatedText
+```swift
+struct GlyphAnimatedText: View {
+    let text: String
+    @State private var visibleGlyphs: Int = 0
+    
+    var body: some View {
+        HStack(spacing: 0) {
+            ForEach(Array(text.enumerated()), id: \.offset) { index, character in
+                Text(String(character))
+                    .opacity(index < visibleGlyphs ? 1 : 0)
+                    .offset(y: index < visibleGlyphs ? 0 : 20)
+                    .blur(radius: index < visibleGlyphs ? 0 : 5)
+            }
+        }
+        .onAppear {
+            // Animate each glyph sequentially
+            for i in 0..<text.count {
+                DispatchQueue.main.asyncAfter(deadline: .now() + Double(i) * 0.03) {
+                    withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
+                        visibleGlyphs = i + 1
+                    }
+                }
+            }
+        }
+    }
+}
+```
+- Implements glyph-by-glyph text animation
+- Uses sequential animation with configurable delay
+- Applies spring animation for each character
+- Combines opacity, offset, and blur transitions
+- Provides customizable animation timing
+
+#### ButtonIconLabel
+```swift
+struct ButtonIconLabel: View {
+    let systemName: String
+    let isAnimated: Bool
+    
+    var body: some View {
+        Image(systemName: systemName)
+            .font(.system(size: 16))
+            .foregroundStyle(.clear)
+            .background(
+                TimelineView(.animation) { timeline in
+                    MeshGradient(
+                        width: 3,
+                        height: 3,
+                        points: animatedPositions(for: timeline.date),
+                        colors: [
+                            Color(hex: "#D5602B"),
+                            Color(hex: "#D45F2B"),
+                            Color(hex: "#AAAAAA"),
+                            Color(hex: "#4883D3"),
+                            Color(hex: "#FFD302"),
+                            Color(hex: "#AAAAAA"),
+                            Color(hex: "#4883D3"),
+                            Color(hex: "#50803A"),
+                            Color(hex: "#50803A")
+                        ],
+                        background: Color.clear,
+                        smoothsColors: true
+                    )
+                }
+            )
+            .mask(
+                Image(systemName: systemName)
+                    .font(.system(size: 16))
+            )
+            .if(isAnimated) { view in
+                view.modifier(PulsingAnimationModifier())
+            }
+    }
+    
+    // Base positions for the mesh gradient
+    private let basePositions: [SIMD2<Float>] = [
+        SIMD2<Float>(0.0, 0.0), SIMD2<Float>(0.5, 0.0), SIMD2<Float>(1.0, 0.0),
+        SIMD2<Float>(0.0, 0.5), SIMD2<Float>(0.5, 0.5), SIMD2<Float>(1.0, 0.5),
+        SIMD2<Float>(0.0, 1.0), SIMD2<Float>(0.5, 1.0), SIMD2<Float>(1.0, 1.0)
+    ]
+    
+    private func animatedPositions(for date: Date) -> [SIMD2<Float>] {
+        let phase = CGFloat(date.timeIntervalSince1970)
+        var animatedPositions = basePositions
+        
+        // Animate the middle control points using cosine waves
+        // This creates a flowing, organic animation
+        animatedPositions[1].x = 0.5 + 0.4 * Float(cos(phase))
+        animatedPositions[3].y = 0.5 + 0.3 * Float(cos(phase * 1.1))
+        animatedPositions[4].y = 0.5 - 0.4 * Float(cos(phase * 0.9))
+        animatedPositions[5].y = 0.5 - 0.2 * Float(cos(phase * 0.9))
+        animatedPositions[7].x = 0.5 - 0.4 * Float(cos(phase * 1.2))
+        
+        return animatedPositions
+    }
+}
+```
+- Applies mesh gradient effect to SF Symbols
+- Uses TimelineView for continuous animation
+- Implements cosine-based animation for organic movement
+- Masks the gradient to the icon shape
+- Supports optional pulsing animation
+- Provides customizable animation timing and curves
+
+#### TextTransition
+```swift
+struct TextTransition: Transition {
+    static var properties: TransitionProperties {
+        TransitionProperties(hasMotion: true)
+    }
+
+    func body(content: Content, phase: TransitionPhase) -> some View {
+        let duration = 0.9
+        let elapsedTime = phase.isIdentity ? duration : 0
+        let renderer = AppearanceEffectRenderer(
+            elapsedTime: elapsedTime,
+            totalDuration: duration
+        )
+
+        content.transaction { transaction in
+            // Force the animation of `elapsedTime` to pace linearly and
+            // drive per-glyph springs based on its value.
+            if !transaction.disablesAnimations {
+                transaction.animation = .linear(duration: duration)
+            }
+        } body: { view in
+            view.textRenderer(renderer)
+        }
+    }
+}
+```
+- Implements a custom transition for text
+- Uses AppearanceEffectRenderer for glyph animation
+- Supports spring-based animation for each character
+- Combines opacity, offset, and blur transitions
+- Provides customizable animation timing and curves
+
+#### AppearanceEffectRenderer
+```swift
+struct AppearanceEffectRenderer: TextRenderer, Animatable {
+    /// The amount of time that passes from the start of the animation.
+    /// Animatable.
+    var elapsedTime: TimeInterval
+
+    /// The amount of time the app spends animating an individual element.
+    var elementDuration: TimeInterval
+
+    /// The amount of time the entire animation takes.
+    var totalDuration: TimeInterval
+
+    var spring: Spring {
+        .snappy(duration: elementDuration - 0.05, extraBounce: 0.4)
+    }
+
+    var animatableData: Double {
+        get { elapsedTime }
+        set { elapsedTime = newValue }
+    }
+
+    init(elapsedTime: TimeInterval, elementDuration: Double = 0.4, totalDuration: TimeInterval) {
+        self.elapsedTime = min(elapsedTime, totalDuration)
+        self.elementDuration = min(elementDuration, totalDuration)
+        self.totalDuration = totalDuration
+    }
+
+    func draw(layout: Text.Layout, in context: inout GraphicsContext) {
+        for run in layout.flattenedRuns {
+            if run[EmphasisAttribute.self] != nil {
+                let delay = elementDelay(count: run.count)
+
+                for (index, slice) in run.enumerated() {
+                    // The time that the current element starts animating,
+                    // relative to the start of the animation.
+                    let timeOffset = TimeInterval(index) * delay
+
+                    // The amount of time that passes for the current element.
+                    let elementTime = max(0, min(elapsedTime - timeOffset, elementDuration))
+
+                    // Make a copy of the context so that individual slices
+                    // don't affect each other.
+                    var copy = context
+                    draw(slice, at: elementTime, in: &copy)
+                }
+            } else {
+                // Make a copy of the context so that individual slices
+                // don't affect each other.
+                var copy = context
+                // Runs that don't have a tag of `EmphasisAttribute` quickly
+                // fade in.
+                copy.opacity = UnitCurve.easeIn.value(at: elapsedTime / 0.2)
+                copy.draw(run)
+            }
+        }
+    }
+
+    func draw(_ slice: Text.Layout.RunSlice, at time: TimeInterval, in context: inout GraphicsContext) {
+        // Calculate a progress value in unit space for blur and
+        // opacity, which derive from `UnitCurve`.
+        let progress = time / elementDuration
+
+        let opacity = UnitCurve.easeIn.value(at: 1.4 * progress)
+
+        let blurRadius =
+            slice.typographicBounds.rect.height / 16 *
+            UnitCurve.easeIn.value(at: 1 - progress)
+
+        // The y-translation derives from a spring, which requires a
+        // time in seconds.
+        let translationY = spring.value(
+            fromValue: -slice.typographicBounds.descent,
+            toValue: 0,
+            initialVelocity: 0,
+            time: time)
+
+        context.translateBy(x: 0, y: translationY)
+        context.addFilter(.blur(radius: blurRadius))
+        context.opacity = opacity
+        context.draw(slice, options: .disablesSubpixelQuantization)
+    }
+
+    /// Calculates how much time passes between the start of two consecutive
+    /// element animations.
+    func elementDelay(count: Int) -> TimeInterval {
+        let count = TimeInterval(count)
+        let remainingTime = totalDuration - count * elementDuration
+
+        return max(remainingTime / (count + 1), (totalDuration - elementDuration) / count)
+    }
+}
+```
+- Implements a custom text renderer for glyph animation
+- Uses spring-based animation for each character
+- Combines opacity, offset, and blur transitions
+- Provides customizable animation timing and curves
+- Supports emphasis attribute for selective animation
 
 ## Established Patterns
 

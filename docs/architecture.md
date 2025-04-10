@@ -598,4 +598,71 @@ for col in 0..<5 {
 4. **Testing**
    - Unit test coverage
    - UI test automation
-   - Integration testing 
+   - Integration testing
+
+## UI Components
+
+### Button System
+
+The button system in PokerSlam implements a sophisticated animation and visual effects architecture that creates engaging, interactive elements throughout the app.
+
+#### PrimaryButton
+
+The `PrimaryButton` component serves as the main action button throughout the application, featuring:
+
+- **Mesh Gradient Background**: Uses `MeshGradientBackground2` with masking and overlays for a premium visual effect
+- **Glyph-by-Glyph Text Animation**: Implements sequential character animation with spring effects
+- **Icon Integration**: Supports optional SF Symbols with matching mesh gradient effects
+- **Entrance/Exit Animations**: Smooth transitions for button appearance and disappearance
+- **Visual Feedback**: Provides clear visual cues for user interactions
+
+#### Animation Components
+
+The button system includes several specialized components for animation:
+
+1. **ButtonTextLabel**
+   - Applies mesh gradient effects to text
+   - Uses TimelineView for continuous animation
+   - Implements cosine-based animation for organic movement
+   - Masks the gradient to the text shape
+
+2. **ButtonIconLabel**
+   - Applies mesh gradient effects to SF Symbols
+   - Uses TimelineView for continuous animation
+   - Implements cosine-based animation for organic movement
+   - Masks the gradient to the icon shape
+   - Supports optional pulsing animation
+
+3. **GlyphAnimatedText**
+   - Implements glyph-by-glyph text animation
+   - Uses sequential animation with configurable delay
+   - Applies spring animation for each character
+   - Combines opacity, offset, and blur transitions
+
+4. **TextTransition**
+   - Implements a custom transition for text
+   - Uses AppearanceEffectRenderer for glyph animation
+   - Supports spring-based animation for each character
+   - Combines opacity, offset, and blur transitions
+
+5. **AppearanceEffectRenderer**
+   - Implements a custom text renderer for glyph animation
+   - Uses spring-based animation for each character
+   - Combines opacity, offset, and blur transitions
+   - Supports emphasis attribute for selective animation
+
+#### Animation Architecture
+
+The button animation system follows a layered architecture:
+
+1. **Base Layer**: Core button structure with mesh gradient background
+2. **Text Layer**: Glyph-by-glyph animation with mesh gradient effects
+3. **Icon Layer**: Optional icon with matching mesh gradient effects
+4. **Transition Layer**: Entrance and exit animations
+5. **Interaction Layer**: Visual feedback for user interactions
+
+This architecture ensures:
+- Consistent visual language across the app
+- Smooth, engaging animations that enhance user experience
+- Efficient performance through optimized rendering
+- Flexible customization options for different contexts 
