@@ -33,7 +33,7 @@ struct ConnectionLinesLayer: View {
                     ConnectionLineView(
                         startPoint: fromPoint,
                         endPoint: toPoint,
-                        color: Color(hex: "#d4d4d4"),
+                        color: Color(hex: "#FFD302"),
                         lineWidth: 2,
                         isAnimated: isAnimated
                     )

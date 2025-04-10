@@ -21,6 +21,8 @@ PokerSlam is an engaging puzzle game where players create poker hands by selecti
 - Animated line drawing for enhanced visual feedback
 - Optimized connection path finding for selected cards
 - Comprehensive poker hand detection including mini straight flushes and nearly straight flushes
+- Glyph-by-glyph text animation for buttons with mesh gradient effects
+- Sequential character animation with spring effects
 
 ### Game Rules
 - Cards must be adjacent to be selected
@@ -121,6 +123,8 @@ PokerSlam/
 - Rounded corner-aware connection points
 - Animated mesh gradient background with position-based transitions
 - Optimized connection path finding for selected cards
+- Glyph-by-glyph text animation for buttons with mesh gradient effects
+- Sequential character animation with spring effects and blur transitions
 
 ## 🔧 Technical Implementation
 
@@ -148,6 +152,8 @@ PokerSlam/
 - Position-based animation with smooth transitions
 - Fallback to linear gradient for earlier iOS versions
 - Customizable color palette and animation timing
+- Mesh gradient text effects with sequential glyph animation
+- Spring-based character animations with blur and opacity transitions
 
 ### Performance Optimizations
 - Efficient card position tracking

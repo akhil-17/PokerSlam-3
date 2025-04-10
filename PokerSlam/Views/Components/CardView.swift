@@ -23,7 +23,8 @@ struct CardView: View {
             ZStack {
                 // Card background
                 RoundedRectangle(cornerRadius: 8)
-                    .fill(Color(hex: "#191919"))
+                    .fill(Material.thick)
+                    .preferredColorScheme(.dark)
                     .frame(width: 64, height: 94)
                     .shadow(
                         color: Color(hex: "#191919").opacity(isSelected ? 0.5 : 0.3),
@@ -34,8 +35,8 @@ struct CardView: View {
                     .overlay(
                         RoundedRectangle(cornerRadius: 8)
                             .stroke(
-                                isSelected ? Color(hex: "#d4d4d4") : Color.clear,
-                                lineWidth: isSelected ? 2 : 1
+                                isSelected ? Color(hex: "#FFD302") : Color.clear,
+                                lineWidth: isSelected ? 1 : 1
                             )
                     )
                 

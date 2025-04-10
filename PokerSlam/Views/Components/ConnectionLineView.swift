@@ -24,7 +24,7 @@ struct ConnectionLineView: View {
     init(
         startPoint: CGPoint,
         endPoint: CGPoint,
-        color: Color = Color(hex: "#d4d4d4"),
+        color: Color = Color(hex: "#FFD302"),
         lineWidth: CGFloat = 2,
         isAnimated: Bool = true
     ) {
