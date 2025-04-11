@@ -170,6 +170,8 @@ private struct GameContainer: View {
                                 title: "Play again",
                                 icon: "arrow.clockwise",
                                 isAnimated: true,
+                                isErrorState: false,
+                                errorAnimationTimestamp: nil,
                                 action: {
                                     Task { @MainActor in
                                         // Update high score if current score is higher
@@ -501,6 +503,8 @@ struct PlayHandButtonContainer: View {
     @ObservedObject var viewModel: GameViewModel
     @ObservedObject var gameState: GameState
     @State private var showButton: Bool = false
+    @State private var isSuccessAnimating: Bool = false
+    @State private var isErrorAnimating: Bool = false
     
     var body: some View {
         ZStack {
@@ -509,21 +513,58 @@ struct PlayHandButtonContainer: View {
                     title: "Play hand",
                     icon: "play.fill",
                     isAnimated: true,
+                    isErrorState: viewModel.isErrorState,
+                    errorAnimationTimestamp: viewModel.errorAnimationTimestamp,
+                    isSuccessState: viewModel.isSuccessState,
                     action: {
                         Task { @MainActor in
+                            // Set flag to indicate we're about to play a hand
+                            isSuccessAnimating = true
+                            
+                            // Play the hand
                             viewModel.playHand()
+                            
+                            // Check if the hand was valid (success state is true)
+                            if viewModel.isSuccessState {
+                                // Keep the button visible for a moment to allow the success animation to play
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+                                    withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
+                                        showButton = false
+                                    }
+                                    isSuccessAnimating = false
+                                }
+                            } else {
+                                // For invalid hands, just reset the animation flag after a short delay
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+                                    isSuccessAnimating = false
+                                }
+                            }
                         }
                     }
                 )
-                .transition(.opacity)
+                .transition(.opacity.combined(with: .move(edge: .bottom)))
             } else {
                 Color.clear
                     .frame(height: 76)
             }
         }
+        .animation(.spring(response: 0.4, dampingFraction: 0.7), value: showButton)
         .onChange(of: viewModel.selectedCards.count) { oldValue, newValue in
-            withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
+            // Only update button visibility if we're not in the middle of a success animation
+            // and not in the middle of an error animation
+            if !isSuccessAnimating && !isErrorAnimating {
                 showButton = newValue >= 2
+            }
+        }
+        .onChange(of: viewModel.errorAnimationTimestamp) { oldValue, newValue in
+            if newValue != nil && oldValue == nil {
+                // Start error animation
+                isErrorAnimating = true
+                
+                // Reset after animation completes
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+                    isErrorAnimating = false
+                }
             }
         }
         .onAppear {

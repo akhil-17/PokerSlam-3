@@ -170,6 +170,9 @@ final class GameViewModel: ObservableObject {
     @Published private(set) var currentHandText: String?
     @Published private(set) var isAnimatingHandText = false
     @Published private(set) var connections: [Connection] = []
+    @Published private(set) var isErrorState = false
+    @Published private(set) var errorAnimationTimestamp: Date?
+    @Published private(set) var isSuccessState = false
     
     // Track the order in which cards were selected
     private var selectionOrder: [Card] = []
@@ -643,11 +646,15 @@ final class GameViewModel: ObservableObject {
             score += handType.rawValue
             successFeedback.notificationOccurred(.success)
             
+            // Set success state before animations
+            print("🎮 Setting success state to true")
+            isSuccessState = true
+            
             // Animate the hand text before proceeding
             isAnimatingHandText = true
             currentHandText = "\(handType.displayName) +\(handType.rawValue)"
             
-            // Clear selection state immediately to prevent button from reappearing
+            // Clear selection state immediately to prevent the button from reappearing
             selectedCards.removeAll()
             selectedCardPositions.removeAll()
             selectionOrder.removeAll()
@@ -808,9 +815,11 @@ final class GameViewModel: ObservableObject {
                 }))
             }
             
-            // Reset animation state and clear hand text after animation
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            // Reset success state after the animation sequence completes
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                print("🎮 Setting success state to false")
                 withAnimation(.easeOut(duration: 0.3)) {
+                    self.isSuccessState = false
                     self.isAnimatingHandText = false
                     self.currentHandText = nil
                 }
@@ -819,6 +828,16 @@ final class GameViewModel: ObservableObject {
         } else {
             lastPlayedHand = nil
             errorFeedback.notificationOccurred(.error)
+            
+            // Set error state to trigger animation
+            isErrorState = true
+            errorAnimationTimestamp = Date()
+            
+            // Reset error state after animation completes
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+                self.isErrorState = false
+                self.errorAnimationTimestamp = nil
+            }
         }
     }
     
@@ -941,6 +960,9 @@ final class GameViewModel: ObservableObject {
         score = 0
         isGameOver = false
         lastPlayedHand = nil
+        isErrorState = false
+        errorAnimationTimestamp = nil
+        isSuccessState = false
         setupDeck()
         dealInitialCards()
     }
