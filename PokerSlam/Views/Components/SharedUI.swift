@@ -245,6 +245,14 @@ struct PrimaryButtonAnimationModifier: ViewModifier {
     @State private var isButtonTapped: Bool = false
     
     let action: () -> Void
+    let isSuccessState: Bool
+    let isErrorState: Bool
+    
+    init(action: @escaping () -> Void, isSuccessState: Bool = false, isErrorState: Bool = false) {
+        self.action = action
+        self.isSuccessState = isSuccessState
+        self.isErrorState = isErrorState
+    }
     
     func body(content: Content) -> some View {
         content
@@ -268,8 +276,8 @@ struct PrimaryButtonAnimationModifier: ViewModifier {
                 }
             }
             .onDisappear {
-                // Only animate if we're not already exiting
-                if !isButtonTapped {
+                // Only animate if we're not already exiting and not in success or error state
+                if !isButtonTapped && !isSuccessState && !isErrorState {
                     // Animate out - reverse of entrance animation
                     withAnimation(.spring(response: 0.4, dampingFraction: 0.7, blendDuration: 0.3)) {
                         // First hide the text with the same animation as entrance
@@ -281,6 +289,101 @@ struct PrimaryButtonAnimationModifier: ViewModifier {
                         withAnimation(.spring(response: 0.4, dampingFraction: 0.7, blendDuration: 0.3)) {
                             buttonScale = 0.8
                             buttonOpacity = 0
+                        }
+                    }
+                }
+            }
+    }
+}
+
+/// A modifier that handles the celebratory success animation for buttons
+struct SuccessAnimationModifier: ViewModifier {
+    let isSuccess: Bool
+    
+    @State private var scale: CGFloat = 1.0
+    @State private var glowOpacity: Double = 0
+    @State private var glowScale: CGFloat = 1.0
+    @State private var rotation: Double = 0
+    @State private var isAnimating: Bool = false
+    
+    func body(content: Content) -> some View {
+        content
+            .scaleEffect(scale)
+            .overlay(
+                ZStack {
+                    // Outer glow
+                    Circle()
+                        .fill(
+                            RadialGradient(
+                                gradient: Gradient(colors: [
+                                    Color.yellow.opacity(0.9),
+                                    Color.orange.opacity(0.7),
+                                    Color.red.opacity(0.5),
+                                    Color.clear
+                                ]),
+                                center: .center,
+                                startRadius: 5,
+                                endRadius: 200
+                            )
+                        )
+                        .scaleEffect(glowScale)
+                        .opacity(glowOpacity)
+                        .blendMode(.hardLight)
+                        .blur(radius: 120)
+                    
+                    // Inner glow
+                    Circle()
+                        .fill(
+                            RadialGradient(
+                                gradient: Gradient(colors: [
+                                    Color.white.opacity(0.9),
+                                    Color.yellow.opacity(0.7),
+                                    Color.orange.opacity(0.5),
+                                    Color.clear
+                                ]),
+                                center: .center,
+                                startRadius: 2,
+                                endRadius: 100
+                            )
+                        )
+                        .scaleEffect(glowScale * 0.7)
+                        .opacity(glowOpacity)
+                        .blendMode(.colorDodge)
+                        .blur(radius: 120)
+                }
+            )
+            .onChange(of: isSuccess) { _, newValue in
+                if newValue && !isAnimating {
+                    print("🎉 Success animation triggered!")
+                    isAnimating = true
+                    
+                    // Initial subtle scale down
+                    withAnimation(.easeInOut(duration: 0.1)) {
+                        scale = 0.9
+                    }
+                    
+                    // Then rapid scale up with glow effect
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.5)) {
+                            scale = 1.1
+                            glowOpacity = 1.0
+                            glowScale = 1.5
+                            
+                        }
+                        
+                        // Fade out the glow and scale back down
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                            withAnimation(.easeOut(duration: 0.2)) {
+                                scale = 0
+                                glowOpacity = 0
+                                glowScale = 2.0
+                                
+                            }
+                            
+                            // Reset animation state
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.0) {
+                                isAnimating = false
+                            }
                         }
                     }
                 }
@@ -440,8 +543,13 @@ struct PrimaryButton: View {
     let icon: String?
     let action: () -> Void
     let isAnimated: Bool
+    let isErrorState: Bool
+    let errorAnimationTimestamp: Date?
+    let isSuccessState: Bool
     @State private var isVisible: Bool = false
     @State private var textOffset: CGFloat = 20
+    @State private var isWiggling: Bool = false
+    @State private var isButtonTapped: Bool = false
     
     // MARK: - Initialization
     
@@ -449,11 +557,17 @@ struct PrimaryButton: View {
         title: String,
         icon: String? = nil,
         isAnimated: Bool = false,
+        isErrorState: Bool = false,
+        errorAnimationTimestamp: Date? = nil,
+        isSuccessState: Bool = false,
         action: @escaping () -> Void
     ) {
         self.title = title
         self.icon = icon
         self.isAnimated = isAnimated
+        self.isErrorState = isErrorState
+        self.errorAnimationTimestamp = errorAnimationTimestamp
+        self.isSuccessState = isSuccessState
         self.action = action
     }
     
@@ -461,7 +575,7 @@ struct PrimaryButton: View {
     
     var body: some View {
         Button(action: {
-            // Execute the action immediately
+            isButtonTapped = true
             action()
         }) {
             HStack(spacing: 8) {
@@ -471,6 +585,12 @@ struct PrimaryButton: View {
                     .offset(y: isVisible ? 0 : textOffset)
                     .opacity(isVisible ? 1 : 0)
                     .blur(radius: isVisible ? 0 : 5)
+                    .offset(x: isWiggling ? 5 : 0)
+                    .animation(
+                        Animation.easeInOut(duration: 0.1)
+                            .repeatCount(3, autoreverses: true),
+                        value: isWiggling
+                    )
                 
                 if let icon = icon {
                     // Icon with mesh gradient effect
@@ -478,6 +598,12 @@ struct PrimaryButton: View {
                         .offset(y: isVisible ? 0 : textOffset)
                         .opacity(isVisible ? 1 : 0)
                         .blur(radius: isVisible ? 0 : 5)
+                        .offset(x: isWiggling ? 5 : 0)
+                        .animation(
+                            Animation.easeInOut(duration: 0.1)
+                                .repeatCount(3, autoreverses: true),
+                            value: isWiggling
+                        )
                 }
             }
             .foregroundColor(.white)
@@ -489,11 +615,11 @@ struct PrimaryButton: View {
                         RoundedRectangle(cornerRadius: 40)
                             .stroke(.white.opacity(0.60), lineWidth: 16)
                             .blur(radius: 4)
-                            .blendMode(.overlay)
+                            .blendMode(.colorDodge)
                     )
                     .overlay(
                         RoundedRectangle(cornerRadius: 40)
-                            .stroke(.white.opacity(0.25), lineWidth: 2)
+                            .stroke(.white.opacity(1), lineWidth: 2)
                             .blur(radius: 12)
                             .blendMode(.hardLight)
                     )
@@ -513,7 +639,19 @@ struct PrimaryButton: View {
             .shadow(color: .black.opacity(0.10), radius: 20, x: 0, y: 20)
         }
         .padding()
-        .modifier(PrimaryButtonAnimationModifier(action: action))
+        .modifier(PrimaryButtonAnimationModifier(action: action, isSuccessState: isSuccessState, isErrorState: isErrorState))
+        .modifier(SuccessAnimationModifier(isSuccess: isSuccessState))
+        .onChange(of: errorAnimationTimestamp) { oldValue, newValue in
+            if newValue != nil && oldValue == nil {
+                // Start the wiggle animation
+                isWiggling = true
+                
+                // Reset after animation completes
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                    isWiggling = false
+                }
+            }
+        }
         .onAppear {
             // Trigger the text animation with minimal delay
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
@@ -687,7 +825,10 @@ struct ButtonIconLabel: View {
         PrimaryButton(
             title: "Play hand",
             icon: "play.fill",
-            isAnimated: true
+            isAnimated: true,
+            isErrorState: false,
+            errorAnimationTimestamp: nil,
+            isSuccessState: false
         ) {
             print("Play hand tapped")
         }
@@ -695,9 +836,102 @@ struct ButtonIconLabel: View {
         PrimaryButton(
             title: "Play again",
             icon: "arrow.clockwise",
-            isAnimated: true
+            isAnimated: true,
+            isErrorState: false,
+            errorAnimationTimestamp: nil,
+            isSuccessState: false
         ) {
             print("Play again tapped")
         }
     }
+} 
+
+// MARK: - Animation Preview
+
+struct AnimationPreview: View {
+    @State private var isSuccessState = false
+    @State private var isErrorState = false
+    @State private var errorAnimationTimestamp: Date? = nil
+    
+    var body: some View {
+        ZStack {
+            MeshGradientBackground()
+                .ignoresSafeArea()
+            
+            VStack(spacing: 30) {
+                Text("Animation Preview")
+                    .font(.title)
+                    .fontWeight(.bold)
+                    .foregroundColor(.white)
+                
+                // Success animation button
+                VStack(spacing: 10) {
+                    Text("Success Animation")
+                        .font(.headline)
+                        .foregroundColor(.white)
+                    
+                    PrimaryButton(
+                        title: "Play hand",
+                        icon: "play.fill",
+                        isAnimated: true,
+                        isErrorState: isErrorState,
+                        errorAnimationTimestamp: errorAnimationTimestamp,
+                        isSuccessState: isSuccessState
+                    ) {
+                        // Trigger success animation
+                        isSuccessState = true
+                        
+                        // Reset after animation completes
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                            isSuccessState = false
+                        }
+                    }
+                }
+                
+                // Error animation button
+                VStack(spacing: 10) {
+                    Text("Error Animation")
+                        .font(.headline)
+                        .foregroundColor(.white)
+                    
+                    PrimaryButton(
+                        title: "Invalid hand",
+                        icon: "xmark",
+                        isAnimated: true,
+                        isErrorState: isErrorState,
+                        errorAnimationTimestamp: errorAnimationTimestamp,
+                        isSuccessState: isSuccessState
+                    ) {
+                        // Trigger error animation
+                        isErrorState = true
+                        errorAnimationTimestamp = Date()
+                        
+                        // Reset after animation completes
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+                            isErrorState = false
+                            errorAnimationTimestamp = nil
+                        }
+                    }
+                }
+                
+                // Toggle button to manually trigger success state
+                VStack(spacing: 10) {
+                    Text("Manual Toggle")
+                        .font(.headline)
+                        .foregroundColor(.white)
+                    
+                    Toggle("Success State", isOn: $isSuccessState)
+                        .foregroundColor(.white)
+                        .padding()
+                        .background(Color.black.opacity(0.3))
+                        .cornerRadius(10)
+                }
+            }
+            .padding()
+        }
+    }
+}
+
+#Preview("Animation Preview") {
+    AnimationPreview()
 } 

@@ -23,6 +23,8 @@ PokerSlam is an engaging puzzle game where players create poker hands by selecti
 - Comprehensive poker hand detection including mini straight flushes and nearly straight flushes
 - Glyph-by-glyph text animation for buttons with mesh gradient effects
 - Sequential character animation with spring effects
+- Responsive button animations with combined transitions
+- Optimized state management for rapid interactions
 
 ### Game Rules
 - Cards must be adjacent to be selected
@@ -125,6 +127,10 @@ PokerSlam/
 - Optimized connection path finding for selected cards
 - Glyph-by-glyph text animation for buttons with mesh gradient effects
 - Sequential character animation with spring effects and blur transitions
+- Enhanced button animations with combined opacity and slide effects
+- Optimized state handling for rapid user interactions
+- Responsive button visibility management
+- Smooth entrance and exit transitions for action buttons
 
 ## 🔧 Technical Implementation
 

@@ -615,6 +615,31 @@ The `PrimaryButton` component serves as the main action button throughout the ap
 - **Icon Integration**: Supports optional SF Symbols with matching mesh gradient effects
 - **Entrance/Exit Animations**: Smooth transitions for button appearance and disappearance
 - **Visual Feedback**: Provides clear visual cues for user interactions
+- **Optimized State Management**: Enhanced state handling for rapid interactions
+- **Combined Transitions**: Uses `.opacity.combined(with: .move(edge: .bottom))` for smooth animations
+- **View-Level Animation**: Implements animations at the view level for better performance
+- **Responsive State Updates**: Optimized for rapid card selections and state changes
+
+#### PlayHandButtonContainer
+
+The `PlayHandButtonContainer` component manages the "Play hand" button's visibility and animations:
+
+- **State Management**: 
+  - Uses `@State private var showButton: Bool` for visibility control
+  - Tracks success and error animation states independently
+  - Prevents animation conflicts during rapid interactions
+
+- **Animation Architecture**:
+  - View-level spring animation for smooth transitions
+  - Combined opacity and slide effects for enhanced visual feedback
+  - Optimized state updates for rapid card selections
+  - Clear separation between animation and state logic
+
+- **Interaction Handling**:
+  - Manages button visibility based on card selection count
+  - Prevents unwanted animations during success/error states
+  - Maintains smooth transitions during rapid interactions
+  - Coordinates with game state for proper timing
 
 #### Animation Components
 
@@ -658,11 +683,21 @@ The button animation system follows a layered architecture:
 1. **Base Layer**: Core button structure with mesh gradient background
 2. **Text Layer**: Glyph-by-glyph animation with mesh gradient effects
 3. **Icon Layer**: Optional icon with matching mesh gradient effects
-4. **Transition Layer**: Entrance and exit animations
-5. **Interaction Layer**: Visual feedback for user interactions
+4. **Transition Layer**: 
+   - Enhanced entrance and exit animations
+   - Combined opacity and slide effects
+   - View-level spring animations
+   - Optimized state management
+5. **Interaction Layer**: 
+   - Visual feedback for user interactions
+   - Rapid state update handling
+   - Animation conflict prevention
+   - Smooth transition coordination
 
 This architecture ensures:
 - Consistent visual language across the app
 - Smooth, engaging animations that enhance user experience
 - Efficient performance through optimized rendering
-- Flexible customization options for different contexts 
+- Flexible customization options for different contexts
+- Responsive handling of rapid user interactions
+- Clear separation of animation and state logic 
