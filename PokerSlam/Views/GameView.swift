@@ -503,8 +503,8 @@ struct PlayHandButtonContainer: View {
     @ObservedObject var viewModel: GameViewModel
     @ObservedObject var gameState: GameState
     @State private var showButton: Bool = false
-    @State private var isSuccessAnimating: Bool = false
     @State private var isErrorAnimating: Bool = false
+    @State private var isSuccessAnimating: Bool = false
     
     var body: some View {
         ZStack {
@@ -518,27 +518,9 @@ struct PlayHandButtonContainer: View {
                     isSuccessState: viewModel.isSuccessState,
                     action: {
                         Task { @MainActor in
-                            // Set flag to indicate we're about to play a hand
-                            isSuccessAnimating = true
-                            
+                            print("🔘 Button tapped, playing hand")
                             // Play the hand
                             viewModel.playHand()
-                            
-                            // Check if the hand was valid (success state is true)
-                            if viewModel.isSuccessState {
-                                // Keep the button visible for a moment to allow the success animation to play
-                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
-                                    withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
-                                        showButton = false
-                                    }
-                                    isSuccessAnimating = false
-                                }
-                            } else {
-                                // For invalid hands, just reset the animation flag after a short delay
-                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
-                                    isSuccessAnimating = false
-                                }
-                            }
                         }
                     }
                 )
@@ -550,10 +532,44 @@ struct PlayHandButtonContainer: View {
         }
         .animation(.spring(response: 0.4, dampingFraction: 0.7), value: showButton)
         .onChange(of: viewModel.selectedCards.count) { oldValue, newValue in
-            // Only update button visibility if we're not in the middle of a success animation
-            // and not in the middle of an error animation
-            if !isSuccessAnimating && !isErrorAnimating {
-                showButton = newValue >= 2
+            print("🔘 Selected cards count changed: \(oldValue) -> \(newValue), isSuccessState: \(viewModel.isSuccessState), isSuccessAnimating: \(isSuccessAnimating)")
+            
+            // Only update button visibility based on selection count if we're not in the middle of a success animation
+            if !isSuccessAnimating {
+                if newValue >= 2 {
+                    print("🔘 Showing button due to selection count: \(newValue)")
+                    showButton = true
+                } else {
+                    showButton = false
+                }
+            } else {
+                print("🔘 Ignoring selection count change during success animation")
+            }
+        }
+        .onChange(of: viewModel.isSuccessState) { oldValue, newValue in
+            print("🔘 Success state changed: \(oldValue) -> \(newValue)")
+            
+            // When success state becomes true, hide the button and set animation flag
+            if newValue == true {
+                print("🔘 Hiding button due to success state")
+                showButton = false
+                isSuccessAnimating = true
+            }
+            // When success state becomes false, wait a moment before checking selection count
+            else if oldValue == true && newValue == false {
+                print("🔘 Success animation completed, waiting before checking selection count")
+                
+                // Add a small delay before checking selection count to avoid race conditions
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    print("🔘 Delay completed, checking selection count: \(viewModel.selectedCards.count)")
+                    isSuccessAnimating = false
+                    
+                    // Check if we should show the button based on current selection
+                    if viewModel.selectedCards.count >= 2 {
+                        print("🔘 Showing button after success animation")
+                        showButton = true
+                    }
+                }
             }
         }
         .onChange(of: viewModel.errorAnimationTimestamp) { oldValue, newValue in
@@ -569,6 +585,7 @@ struct PlayHandButtonContainer: View {
         }
         .onAppear {
             // Set initial state
+            print("🔘 PlayHandButtonContainer appeared, selection count: \(viewModel.selectedCards.count)")
             showButton = viewModel.selectedCards.count >= 2
         }
     }
