@@ -32,7 +32,7 @@ private struct HandFormationText: View {
     
     private var handName: String? {
         guard let text = text else { return nil }
-        return text.components(separatedBy: " +").first
+        return text.components(separatedBy: " +").first?.uppercased()
     }
     
     private var scoreText: String? {
@@ -45,21 +45,29 @@ private struct HandFormationText: View {
     var body: some View {
         ZStack {
             if isGameOver {
-                Text("Game over, no more poker hands can be formed")
-                    .font(.subheadline)
-                    .foregroundColor(.white.opacity(0.8))
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal)
+                GradientText(
+                    font: .messageText
+                ) {
+                    GlyphAnimatedText(text: "Game over, all poker hands played")
+                }
+                .multilineTextAlignment(.center)
+                .padding(.horizontal)
             } else if let text = text {
                 if let handName = handName, let scoreText = scoreText {
                     HStack(spacing: 4) {
-                        Text(handName)
-                            .font(.subheadline)
-                            .foregroundColor(.white.opacity(0.8))
-                        Text(scoreText)
-                            .font(.subheadline)
-                            .fontWeight(.bold)
-                            .foregroundColor(.white.opacity(0.8))
+                        GradientText(
+                            font: .handFormationText,
+                            tracking: 1
+                        ) {
+                            GlyphAnimatedText(text: handName)
+                        }
+                        GradientText(
+                            font: .handFormationScoreText,
+                            tracking: 1
+                        ) {
+                            let scoreDelay = Double(handName.count) * 0.03 + 0.1
+                            GlyphAnimatedText(text: scoreText, animationDelay: scoreDelay)
+                        }
                     }
                     .multilineTextAlignment(.center)
                     .padding(.horizontal)
@@ -68,15 +76,17 @@ private struct HandFormationText: View {
                     .opacity(isAnimating ? 0 : 1)
                     .animation(.easeOut(duration: 0.3), value: isAnimating)
                 } else {
-                    Text(text)
-                        .font(.subheadline)
-                        .foregroundColor(.white.opacity(0.8))
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal)
-                        .scaleEffect(isAnimating ? 1.2 : 1.0)
-                        .offset(y: isAnimating ? -20 : 0)
-                        .opacity(isAnimating ? 0 : 1)
-                        .animation(.easeOut(duration: 0.3), value: isAnimating)
+                    GradientText(
+                        font: .messageText
+                    ) {
+                        GlyphAnimatedText(text: text)
+                    }
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal)
+                    .scaleEffect(isAnimating ? 1.2 : 1.0)
+                    .offset(y: isAnimating ? -20 : 0)
+                    .opacity(isAnimating ? 0 : 1)
+                    .animation(.easeOut(duration: 0.3), value: isAnimating)
                 }
             }
         }
@@ -182,6 +192,7 @@ private struct GameContainer: View {
                                     }
                                 }
                             )
+                            .modifier(SuccessAnimationModifier(isSuccess: viewModel.isResetting))
                         } else {
                             // Use a custom view to handle the animation
                             PlayHandButtonContainer(

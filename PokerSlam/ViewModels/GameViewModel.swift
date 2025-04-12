@@ -173,6 +173,7 @@ final class GameViewModel: ObservableObject {
     @Published private(set) var isErrorState = false
     @Published private(set) var errorAnimationTimestamp: Date?
     @Published private(set) var isSuccessState = false
+    @Published private(set) var isResetting = false
     
     // Track the order in which cards were selected
     private var selectionOrder: [Card] = []
@@ -184,6 +185,7 @@ final class GameViewModel: ObservableObject {
     private let successFeedback = UINotificationFeedbackGenerator()
     private let shiftFeedback = UIImpactFeedbackGenerator(style: .light)
     private let newCardFeedback = UIImpactFeedbackGenerator(style: .soft)
+    private let resetGameFeedback = UINotificationFeedbackGenerator()
     private var selectedCardPositions: [(row: Int, col: Int)] = []
     
     /// Returns whether cards are currently interactive
@@ -952,6 +954,8 @@ final class GameViewModel: ObservableObject {
     
     /// Resets the game to its initial state
     func resetGame() {
+        isResetting = true
+        resetGameFeedback.notificationOccurred(.success)
         cardPositions.removeAll()
         selectedCards.removeAll()
         eligibleCards.removeAll()
@@ -965,6 +969,11 @@ final class GameViewModel: ObservableObject {
         isSuccessState = false
         setupDeck()
         dealInitialCards()
+
+        // Reset animation state after a delay
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            self.isResetting = false
+        }
     }
     
     /// Determines the appropriate anchor points for connecting two cards

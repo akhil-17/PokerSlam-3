@@ -21,10 +21,12 @@ PokerSlam is an engaging puzzle game where players create poker hands by selecti
 - Animated line drawing for enhanced visual feedback
 - Optimized connection path finding for selected cards
 - Comprehensive poker hand detection including mini straight flushes and nearly straight flushes
-- Glyph-by-glyph text animation for buttons with mesh gradient effects
-- Sequential character animation with spring effects
-- Responsive button animations with combined transitions
-- Optimized state management for rapid interactions
+- Reusable gradient text component with lighter, animated mesh gradient styling and shadow effect
+- Glyph-by-glyph text animation for key text elements (intro, game over, hand/score)
+- Sequential glyph animation for hand name and score
+- Replayable glyph animation when text content changes
+- Shared success animation for "Play hand" and "Play again" buttons
+- Distinct haptic feedback for game reset
 
 ### Game Rules
 - Cards must be adjacent to be selected
@@ -125,12 +127,16 @@ PokerSlam/
 - Rounded corner-aware connection points
 - Animated mesh gradient background with position-based transitions
 - Optimized connection path finding for selected cards
-- Glyph-by-glyph text animation for buttons with mesh gradient effects
-- Sequential character animation with spring effects and blur transitions
+- Lighter mesh gradient styling with shadow for important text elements (intro, game over, hand/score)
+- Glyph-by-glyph text animation for buttons and key text elements
+- Sequential character animation (hand name then score) with spring effects and blur transitions
+- Replayable glyph animation when text content changes
 - Enhanced button animations with combined opacity and slide effects
+- Shared success animation (scale/glow) for "Play hand" and "Play again" buttons
 - Optimized state handling for rapid user interactions
 - Responsive button visibility management
 - Smooth entrance and exit transitions for action buttons
+- Specific haptic feedback for game reset action
 
 ## 🔧 Technical Implementation
 

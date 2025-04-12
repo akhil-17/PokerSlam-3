@@ -389,6 +389,45 @@ class GameState: ObservableObject {
 - Position updates
 - Layout changes
 
+#### Glyph-by-glyph Animation
+```swift
+struct GlyphAnimatedText: View {
+    let text: String
+    let animationDelay: Double // Optional delay for sequencing
+    @State private var visibleGlyphs: Int = 0
+    
+    var body: some View {
+        HStack(spacing: 0) {
+            ForEach(Array(text.enumerated()), id: \.offset) { index, character in
+                Text(String(character))
+                    .opacity(index < visibleGlyphs ? 1 : 0)
+                    .offset(y: index < visibleGlyphs ? 0 : 20)
+                    .blur(radius: index < visibleGlyphs ? 0 : 5)
+            }
+        }
+        .onAppear {
+            // Animate each glyph sequentially
+            for i in 0..<text.count {
+                DispatchQueue.main.asyncAfter(deadline: .now() + Double(i) * 0.03) {
+                    withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
+                        visibleGlyphs = i + 1
+                    }
+                }
+            }
+        }
+    }
+
+    private func animateGlyphs() { /* ... */ }
+    private func resetAndAnimateGlyphs() { /* ... */ }
+}
+```
+- Implements glyph-by-glyph text animation
+- Uses sequential animation with configurable delay (`animationDelay`)
+- Applies spring animation for each character
+- Combines opacity, offset, and blur transitions
+- Provides customizable animation timing
+- Replays animation when `text` changes via `.onChange` and `.id`
+
 ### 9. Mesh Gradient Background System
 
 #### MeshGradientBackground
@@ -463,6 +502,17 @@ struct MeshGradientBackground: View {
 - Provides fallback to LinearGradient for earlier iOS versions
 - Uses SIMD2<Float> for efficient vector operations
 - Supports customizable animation timing and curves
+
+#### Customizable Color Palette
+- Allows for different color combinations
+- Enhances visual appeal
+- Supports dynamic theme changes
+
+#### Mesh Gradient Text Effects
+- Applies mesh gradient effects to text
+- Creates visually appealing text effects
+- Supports sequential glyph animation
+- Enhances text readability
 
 ### 10. Button Animation System
 
@@ -541,6 +591,8 @@ struct PrimaryButton: View {
 - Supports optional icon with mesh gradient effect
 - Implements entrance and exit animations
 - Provides visual feedback for user interactions
+- Applies shared success animation (scale/glow) via SuccessAnimationModifier based on state
+- Applies error wiggle animation based on state
 
 #### ButtonTextLabel
 ```swift
@@ -607,40 +659,6 @@ struct ButtonTextLabel: View {
 - Implements cosine-based animation for organic movement
 - Masks the gradient to the text shape
 - Supports customizable animation timing and curves
-
-#### GlyphAnimatedText
-```swift
-struct GlyphAnimatedText: View {
-    let text: String
-    @State private var visibleGlyphs: Int = 0
-    
-    var body: some View {
-        HStack(spacing: 0) {
-            ForEach(Array(text.enumerated()), id: \.offset) { index, character in
-                Text(String(character))
-                    .opacity(index < visibleGlyphs ? 1 : 0)
-                    .offset(y: index < visibleGlyphs ? 0 : 20)
-                    .blur(radius: index < visibleGlyphs ? 0 : 5)
-            }
-        }
-        .onAppear {
-            // Animate each glyph sequentially
-            for i in 0..<text.count {
-                DispatchQueue.main.asyncAfter(deadline: .now() + Double(i) * 0.03) {
-                    withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
-                        visibleGlyphs = i + 1
-                    }
-                }
-            }
-        }
-    }
-}
-```
-- Implements glyph-by-glyph text animation
-- Uses sequential animation with configurable delay
-- Applies spring animation for each character
-- Combines opacity, offset, and blur transitions
-- Provides customizable animation timing
 
 #### ButtonIconLabel
 ```swift
@@ -844,6 +862,11 @@ struct AppearanceEffectRenderer: TextRenderer, Animatable {
 - Combines opacity, offset, and blur transitions
 - Provides customizable animation timing and curves
 - Supports emphasis attribute for selective animation
+
+### 11. Haptic Feedback System
+- `UISelectionFeedbackGenerator`: Used for card selection changes.
+- `UIImpactFeedbackGenerator`: Used for deselection (.light), card shifting (.light), new card appearance (.soft).
+- `UINotificationFeedbackGenerator`: Used for success hand play (.success), error hand play (.error), and game reset (.success).
 
 ## Established Patterns
 
