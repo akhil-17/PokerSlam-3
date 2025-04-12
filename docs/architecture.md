@@ -231,6 +231,21 @@ struct MeshGradientState {
 - iOS version handling
 - Performance optimization
 
+### GradientText (New Component)
+```swift
+struct GradientText<Content: View>: View {
+    let content: Content // Accepts any View
+    let font: Font
+    let tracking: CGFloat
+    let isAnimated: Bool
+    // ... init and body ...
+}
+```
+- Reusable component for text with animated mesh gradient.
+- Uses lighter color palette and shadow effect.
+- Accepts a ViewBuilder for flexible content (e.g., GlyphAnimatedText).
+- Applied to intro message, game over message, hand/score text.
+
 ## View Model Layer Components
 
 ### Game ViewModel
@@ -239,6 +254,9 @@ struct MeshGradientState {
 - Score calculation
 - Hand detection
 - Animation coordination
+- Manages state for success (`isSuccessState`) and reset (`isResetting`) animations.
+- Manages error animation state (`isErrorState`, `errorAnimationTimestamp`).
+- Triggers appropriate haptic feedback for various actions (selection, success, error, reset).
 
 ### Connection ViewModel
 - Connection management
@@ -253,6 +271,11 @@ struct MeshGradientState {
 - Color coordination
 - iOS version handling
 - Performance optimization
+
+### Haptic Feedback State (Conceptual)
+- `GameViewModel` directly manages and triggers feedback generators.
+- Generators include `UISelectionFeedbackGenerator`, `UIImpactFeedbackGenerator`, `UINotificationFeedbackGenerator`.
+- Feedback is tied to specific game actions (selection, success, error, reset, card movement).
 
 ## State Management
 
@@ -319,6 +342,16 @@ class BackgroundState: ObservableObject {
 3. Colors interpolated
 4. Visual effect rendered
 5. Next position scheduled
+
+### Button Animation Flow
+1. Button appears (e.g., "Play hand" when >= 2 cards selected).
+2. Entrance animation plays (scale, opacity, text glyph reveal).
+3. User taps button.
+4. Action triggers corresponding ViewModel logic (playHand or resetGame).
+5. ViewModel updates state (e.g., `isSuccessState` or `isResetting`).
+6. `SuccessAnimationModifier` observes state change and plays scale/glow animation on the button.
+7. ViewModel resets animation state after a delay.
+8. If action was successful (playHand), button might disappear based on selection count changes.
 
 ## Design Patterns
 
@@ -611,10 +644,10 @@ The button system in PokerSlam implements a sophisticated animation and visual e
 The `PrimaryButton` component serves as the main action button throughout the application, featuring:
 
 - **Mesh Gradient Background**: Uses `MeshGradientBackground2` with masking and overlays for a premium visual effect
-- **Glyph-by-Glyph Text Animation**: Implements sequential character animation with spring effects
+- **Glyph-by-Glyph Text Animation**: Implements sequential character animation with spring effects via `GlyphAnimatedText`
 - **Icon Integration**: Supports optional SF Symbols with matching mesh gradient effects
 - **Entrance/Exit Animations**: Smooth transitions for button appearance and disappearance
-- **Visual Feedback**: Provides clear visual cues for user interactions
+- **Visual Feedback**: Provides clear visual cues for user interactions, including success (scale/glow) and error (wiggle) animations driven by ViewModel state
 - **Optimized State Management**: Enhanced state handling for rapid interactions
 - **Combined Transitions**: Uses `.opacity.combined(with: .move(edge: .bottom))` for smooth animations
 - **View-Level Animation**: Implements animations at the view level for better performance
@@ -700,4 +733,35 @@ This architecture ensures:
 - Efficient performance through optimized rendering
 - Flexible customization options for different contexts
 - Responsive handling of rapid user interactions
-- Clear separation of animation and state logic 
+- Clear separation of animation and state logic
+- Specific haptic feedback integration for actions
+
+#### GlyphAnimatedText
+
+- Implements glyph-by-glyph text animation.
+- Uses sequential animation with configurable delay (`animationDelay`).
+- Applies spring animation for each character.
+- Combines opacity, offset, and blur transitions.
+- Replays animation when `text` changes.
+
+### GradientText (New Component)
+
+- Reusable component for text with animated mesh gradient.
+- Uses lighter color palette and shadow effect.
+- Accepts a ViewBuilder for flexible content (e.g., GlyphAnimatedText).
+- Applied to intro message, game over message, hand/score text.
+
+### Mesh Gradient Background
+
+- Background rendering
+- Position animation
+- Color management
+- iOS version handling
+- Performance optimization
+
+### GradientText (New Component)
+
+- Reusable component for text with animated mesh gradient.
+- Uses lighter color palette and shadow effect.
+- Accepts a ViewBuilder for flexible content (e.g., GlyphAnimatedText).
+- Applied to intro message, game over message, hand/score text. 

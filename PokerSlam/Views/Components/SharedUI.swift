@@ -150,6 +150,26 @@ extension Font {
     static var mainButton: Font {
         .custom("Kanit-SemiBold", size: 24)
     }
+    
+    /// Custom font style for intro message text
+    static var introMessageText: Font {
+        .custom("Kanit-Medium", size: 18)
+    }
+    
+    /// Custom font style for hand formation text
+    static var handFormationText: Font {
+        .custom("Kanit-SemiBold", size: 20)
+    }
+    
+    /// Custom font style for hand formation score text
+    static var handFormationScoreText: Font {
+        .custom("Kanit-Bold", size: 20)
+    }
+    
+    /// Custom font style for game over and intro messages
+    static var messageText: Font {
+        .custom("Kanit-Medium", size: 18)
+    }
 }
 
 // MARK: - View Extensions
@@ -678,15 +698,15 @@ struct ButtonTextLabel: View {
                         height: 3,
                         points: animatedPositions(for: timeline.date),
                         colors: [
-                            Color(hex: "#D5602B"),
-                            Color(hex: "#D45F2B"),
-                            Color(hex: "#AAAAAA"),
-                            Color(hex: "#4883D3"),
-                            Color(hex: "#FFD302"),
-                            Color(hex: "#AAAAAA"),
-                            Color(hex: "#4883D3"),
-                            Color(hex: "#50803A"),
-                            Color(hex: "#50803A")
+                            Color(hex: "#FFA87D"), // Lighter Orange-Red
+                            Color(hex: "#FFB08A"), // Lighter Orange-Red
+                            Color(hex: "#CCCCCC"), // Lighter Gray
+                            Color(hex: "#8BB8E8"), // Lighter Blue
+                            Color(hex: "#FFE76B"), // Lighter Yellow
+                            Color(hex: "#CCCCCC"), // Lighter Gray
+                            Color(hex: "#8BB8E8"), // Lighter Blue
+                            Color(hex: "#90B884"), // Lighter Green
+                            Color(hex: "#90B884")  // Lighter Green
                         ],
                         background: Color.clear,
                         smoothsColors: true
@@ -725,7 +745,13 @@ struct ButtonTextLabel: View {
 /// A view that animates text with a glyph-by-glyph animation
 struct GlyphAnimatedText: View {
     let text: String
+    let animationDelay: Double
     @State private var visibleGlyphs: Int = 0
+    
+    init(text: String, animationDelay: Double = 0.0) {
+        self.text = text
+        self.animationDelay = animationDelay
+    }
     
     var body: some View {
         HStack(spacing: 0) {
@@ -736,16 +762,36 @@ struct GlyphAnimatedText: View {
                     .blur(radius: index < visibleGlyphs ? 0 : 5)
             }
         }
+        .id(text)
         .onAppear {
+            animateGlyphs()
+        }
+        .onChange(of: text) {
+            resetAndAnimateGlyphs()
+        }
+    }
+
+    private func animateGlyphs() {
+        // Apply initial delay before starting the animation loop
+        DispatchQueue.main.asyncAfter(deadline: .now() + animationDelay) {
             // Animate each glyph sequentially
             for i in 0..<text.count {
                 DispatchQueue.main.asyncAfter(deadline: .now() + Double(i) * 0.03) {
-                    withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
-                        visibleGlyphs = i + 1
+                    // Ensure the text hasn't changed again before updating visibleGlyphs
+                    if self.visibleGlyphs == i {
+                        withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
+                            visibleGlyphs = i + 1
+                        }
                     }
                 }
             }
         }
+    }
+
+    private func resetAndAnimateGlyphs() {
+        visibleGlyphs = 0 // Reset visibility
+        // No delay needed on reset, animation itself will be delayed by animateGlyphs in animateGlyphs
+        animateGlyphs() // Start animation for new text
     }
 }
 
@@ -765,15 +811,15 @@ struct ButtonIconLabel: View {
                         height: 3,
                         points: animatedPositions(for: timeline.date),
                         colors: [
-                            Color(hex: "#D5602B"),
-                            Color(hex: "#D45F2B"),
-                            Color(hex: "#AAAAAA"),
-                            Color(hex: "#4883D3"),
-                            Color(hex: "#FFD302"),
-                            Color(hex: "#AAAAAA"),
-                            Color(hex: "#4883D3"),
-                            Color(hex: "#50803A"),
-                            Color(hex: "#50803A")
+                            Color(hex: "#FFA87D"), // Lighter Orange-Red
+                            Color(hex: "#FFB08A"), // Lighter Orange-Red
+                            Color(hex: "#CCCCCC"), // Lighter Gray
+                            Color(hex: "#8BB8E8"), // Lighter Blue
+                            Color(hex: "#FFE76B"), // Lighter Yellow
+                            Color(hex: "#CCCCCC"), // Lighter Gray
+                            Color(hex: "#8BB8E8"), // Lighter Blue
+                            Color(hex: "#90B884"), // Lighter Green
+                            Color(hex: "#90B884")  // Lighter Green
                         ],
                         background: Color.clear,
                         smoothsColors: true
@@ -784,6 +830,86 @@ struct ButtonIconLabel: View {
                 Image(systemName: systemName)
                     .font(.system(size: 16))
             )
+            .if(isAnimated) { view in
+                view.modifier(PulsingAnimationModifier())
+            }
+    }
+    
+    // Base positions for the mesh gradient
+    private let basePositions: [SIMD2<Float>] = [
+        SIMD2<Float>(0.0, 0.0), SIMD2<Float>(0.5, 0.0), SIMD2<Float>(1.0, 0.0),
+        SIMD2<Float>(0.0, 0.5), SIMD2<Float>(0.5, 0.5), SIMD2<Float>(1.0, 0.5),
+        SIMD2<Float>(0.0, 1.0), SIMD2<Float>(0.5, 1.0), SIMD2<Float>(1.0, 1.0)
+    ]
+    
+    private func animatedPositions(for date: Date) -> [SIMD2<Float>] {
+        let phase = CGFloat(date.timeIntervalSince1970)
+        var animatedPositions = basePositions
+        
+        // Animate the middle control points using cosine waves
+        // This creates a flowing, organic animation
+        animatedPositions[1].x = 0.5 + 0.4 * Float(cos(phase))
+        animatedPositions[3].y = 0.5 + 0.3 * Float(cos(phase * 1.1))
+        animatedPositions[4].y = 0.5 - 0.4 * Float(cos(phase * 0.9))
+        animatedPositions[5].y = 0.5 - 0.2 * Float(cos(phase * 0.9))
+        animatedPositions[7].x = 0.5 - 0.4 * Float(cos(phase * 1.2))
+        
+        return animatedPositions
+    }
+}
+
+/// A reusable component that applies a mesh gradient effect to text
+struct GradientText<Content: View>: View {
+    let content: Content
+    let font: Font
+    let tracking: CGFloat
+    let isAnimated: Bool
+
+    init(
+        font: Font,
+        tracking: CGFloat = 0,
+        isAnimated: Bool = false,
+        @ViewBuilder content: () -> Content
+    ) {
+        self.content = content()
+        self.font = font
+        self.tracking = tracking
+        self.isAnimated = isAnimated
+    }
+
+    var body: some View {
+        content
+            .font(font)
+            .tracking(tracking)
+            .foregroundStyle(.clear)
+            .background(
+                TimelineView(.animation) { timeline in
+                    MeshGradient(
+                        width: 3,
+                        height: 3,
+                        points: animatedPositions(for: timeline.date),
+                        colors: [
+                            Color(hex: "#FFA87D"), // Lighter Orange-Red
+                            Color(hex: "#FFB08A"), // Lighter Orange-Red
+                            Color(hex: "#CCCCCC"), // Lighter Gray
+                            Color(hex: "#8BB8E8"), // Lighter Blue
+                            Color(hex: "#FFE76B"), // Lighter Yellow
+                            Color(hex: "#CCCCCC"), // Lighter Gray
+                            Color(hex: "#8BB8E8"), // Lighter Blue
+                            Color(hex: "#90B884"), // Lighter Green
+                            Color(hex: "#90B884")  // Lighter Green
+                        ],
+                        background: Color.clear,
+                        smoothsColors: true
+                    )
+                }
+            )
+            .mask(
+                content
+                    .font(font)
+                    .tracking(tracking)
+            )
+            .shadow(color: .black.opacity(0.5), radius: 2, x: 0, y: 1)
             .if(isAnimated) { view in
                 view.modifier(PulsingAnimationModifier())
             }
