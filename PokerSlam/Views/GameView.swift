@@ -259,6 +259,17 @@ private struct GameContainer: View {
             targetScore = viewModel.score
         }
         .onChange(of: viewModel.score) { _, newScore in // Tally score animation
+            // Handle instant reset to 0 for "Play Again"
+            if newScore == 0 {
+                scoreUpdateTimer?.invalidate()
+                scoreUpdateTimer = nil
+                isScoreAnimating = false // Instantly turn off gradient
+                displayedScore = 0 // Instantly set score
+                targetScore = 0
+                return // Skip animation logic
+            }
+            
+            // Existing animation logic for normal score changes
             targetScore = newScore
             scoreUpdateTimer?.invalidate() // Cancel existing timer
 
