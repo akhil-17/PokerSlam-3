@@ -163,12 +163,22 @@ extension Font {
     
     /// Custom font style for hand formation score text
     static var handFormationScoreText: Font {
-        .custom("Kanit-Bold", size: 20)
+        .custom("Kanit-SemiBold", size: 20)
     }
     
     /// Custom font style for game over and intro messages
     static var messageText: Font {
         .custom("Kanit-Medium", size: 18)
+    }
+    
+    /// Custom font style for the score label (e.g., "SCORE")
+    static var scoreLabel: Font {
+        .custom("Kanit-Regular", size: 14) // Assuming subheadline maps roughly to size 14
+    }
+    
+    /// Custom font style for the score value (e.g., "1234")
+    static var scoreValue: Font {
+        .custom("Kanit-SemiBold", size: 24)
     }
 }
 
@@ -935,6 +945,34 @@ struct GradientText<Content: View>: View {
         animatedPositions[7].x = 0.5 - 0.4 * Float(cos(phase * 1.2))
         
         return animatedPositions
+    }
+}
+
+// MARK: - Circular Icon Button
+
+/// A circular button designed to display an SF Symbol icon.
+struct CircularIconButton: View {
+    let iconName: String
+    let action: () -> Void
+
+    private let buttonSize: CGFloat = 44
+    private let iconSize: CGFloat = 16
+    private let strokeWidth: CGFloat = 1
+    private let strokeColor = Color(hex: "#999999").opacity(0.75)
+    private let iconColor = Color(hex: "#999999").opacity(0.75)
+
+    var body: some View {
+        Button(action: action) {
+            ZStack {
+                Circle()
+                    .strokeBorder(strokeColor, lineWidth: strokeWidth)
+
+                Image(systemName: iconName)
+                    .font(.system(size: iconSize))
+                    .foregroundColor(iconColor)
+            }
+            .frame(width: buttonSize, height: buttonSize)
+        }
     }
 }
 

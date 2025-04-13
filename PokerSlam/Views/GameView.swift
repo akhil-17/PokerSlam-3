@@ -110,7 +110,7 @@ private struct GameContainer: View {
             VStack(spacing: 0) {
                 // Custom Header
                 HStack {
-                    Button(action: { 
+                    CircularIconButton(iconName: "xmark") {
                         Task { @MainActor in
                             // Update high score if current score is higher
                             if viewModel.score > gameState.currentScore {
@@ -118,33 +118,30 @@ private struct GameContainer: View {
                             }
                             dismiss()
                         }
-                    }) {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.title)
-                            .foregroundColor(.white)
                     }
                     
                     Spacer()
                     
-                    VStack(spacing: 2) {
-                        Text(viewModel.score > gameState.currentScore ? "New high score!" : "Score")
-                            .font(.subheadline)
-                            .foregroundColor(.white.opacity(0.8))
+                    VStack(spacing: -4) {
+                        Text(viewModel.score > gameState.currentScore ? "New high score" : "Score")
+                            .textCase(.uppercase)
+                            .tracking(1)
+                            .font(.scoreLabel)
+                            .foregroundColor(Color(hex: "#999999"))
                         Text("\(viewModel.score)")
-                            .font(.title2)
-                            .fontWeight(.bold)
-                            .foregroundColor(.white)
+                            .font(.scoreValue)
+                            .foregroundColor(Color(hex: "#999999"))
                     }
                     
                     Spacer()
                     
-                    Button(action: { showingHandReference = true }) {
-                        Image(systemName: "questionmark.circle.fill")
-                            .font(.title)
-                            .foregroundColor(.white)
+                    CircularIconButton(iconName: "questionmark") {
+                        showingHandReference = true
                     }
                 }
-                .padding()
+                .padding(.horizontal, 24)
+                .padding(.top, 8)
+                .padding(.bottom, 4)
                 
                 // Main Content
                 VStack(spacing: 0) {
