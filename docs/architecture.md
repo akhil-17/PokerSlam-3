@@ -189,19 +189,25 @@ struct MeshGradientState {
 
 ## View Layer Components
 
+### Main Menu View
+- Simplified entry point to the game.
+- Displays the game title ("Poker Slam") using `GradientText` and `.appTitle` style.
+- Displays a "tap to start" message using `IntroMessageTextStyle`.
+- Tapping anywhere triggers a full-screen transition to `GameView`.
+- Contains no navigation buttons for settings or instructions.
+
 ### Game View
 - Main game interface
-- View composition
-- State observation
-- User interaction
-- Layout management
+- View composition: Uses `GameContainer` for structure.
+- State observation: Observes `GameViewModel` and `GameState`.
+- User interaction: Handles card selection taps, exit button, and help button taps.
+- Layout management: Uses `VStack`, `HStack`, `ZStack`, `Spacer` for layout.
+- Header: Displays score, exit button (CircularIconButton), and help button (CircularIconButton) to show `HandReferenceView`.
 
 ### Hand Reference View
-- Comprehensive hand type display
-- Organized by card count (2-5 cards)
-- Clear section headers
-- Examples on separate lines
-- Score display for each hand type
+- Displayed as a sheet presentation from the `GameView`.
+- Shows poker hand rankings and scoring.
+- Includes section headers and examples.
 
 ### Card Grid View
 - Card layout

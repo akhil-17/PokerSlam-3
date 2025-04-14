@@ -27,6 +27,9 @@ PokerSlam is an engaging puzzle game where players create poker hands by selecti
 - Replayable glyph animation when text content changes
 - Shared success animation for "Play hand" and "Play again" buttons
 - Distinct haptic feedback for game reset
+- Simplified main menu (tap anywhere to start)
+- In-game access to hand reference guide
+- Enhanced game header with score display
 
 ### Game Rules
 - Cards must be adjacent to be selected
@@ -67,8 +70,8 @@ PokerSlam/
 ├── Views/                 # SwiftUI views
 │   ├── GameView.swift     # Main game interface
 │   ├── CardView.swift     # Individual card view
-│   ├── MainMenuView.swift # Main menu interface
-│   ├── HandReferenceView.swift # Poker hand reference
+│   ├── MainMenuView.swift # Main menu interface (tap to start)
+│   ├── HandReferenceView.swift # Poker hand reference (accessed in-game)
 │   └── Components/        # Reusable UI components
 │       ├── SharedUI.swift # Shared UI components including MeshGradientBackground
 │       ├── ConnectionLineView.swift # Connection line rendering
@@ -121,7 +124,7 @@ PokerSlam/
 - Smooth animations for card movements
 - Haptic feedback for interactions
 - Clear visual feedback for valid/invalid selections
-- Intuitive hand reference guide
+- In-game hand reference guide accessible via icon button
 - Responsive design for all iOS devices
 - Animated connection lines between selected cards
 - Rounded corner-aware connection points
@@ -137,6 +140,8 @@ PokerSlam/
 - Responsive button visibility management
 - Smooth entrance and exit transitions for action buttons
 - Specific haptic feedback for game reset action
+- Simplified main menu: Tap anywhere to start the game
+- Updated game header: Displays current score (and indicates new high score), provides access to Hand Reference view, and includes an exit button.
 
 ## 🔧 Technical Implementation
 

@@ -146,6 +146,11 @@ struct MeshGradientBackground2: View {
 // MARK: - Custom Font Extensions
 
 extension Font {
+    /// Custom font style for the app title
+    static var appTitle: Font {
+        .custom("Kanit-SemiBold", size: 48)
+    }
+    
     /// Custom font style for main buttons in the app
     static var mainButton: Font {
         .custom("Kanit-SemiBold", size: 24)
@@ -196,6 +201,16 @@ extension View {
 }
 
 // MARK: - Custom Modifiers
+
+/// A modifier that applies the standard styling for intro messages.
+struct IntroMessageTextStyle: ViewModifier {
+    func body(content: Content) -> some View {
+        content
+            .font(.introMessageText)
+            .foregroundColor(.white.opacity(0.5))
+            .blendMode(.colorDodge)
+    }
+}
 
 /// A modifier that conditionally applies the symbol effect based on iOS version
 struct SymbolEffectModifier: ViewModifier {
