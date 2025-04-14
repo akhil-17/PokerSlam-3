@@ -19,12 +19,16 @@ PokerSlam/
 │   │   ├── SharedUI.swift # Shared UI components including MeshGradientBackground
 │   │   ├── ConnectionLineView.swift # Connection line rendering
 │   │   └── ConnectionLinesLayer.swift # Connection lines management
+│   ├── MainMenuView.swift # Main menu interface (tap to start)
+│   ├── CardView.swift     # Individual card view
+│   └── HandReferenceView.swift # Poker hand reference (accessed in-game)
 │   └── ...
 ├── ViewModels/           # View Models
 ├── Models/               # Data Models
 │   ├── Card.swift        # Card model
 │   ├── Connection.swift  # Connection between cards
 │   ├── AnchorPoint.swift # Anchor point for connections
+│   └── HandType.swift    # Poker hand types
 │   └── ...
 ├── Extensions/          # Swift Extensions
 │   └── Color+Hex.swift  # Color extension for hex color support
@@ -1054,4 +1058,15 @@ private func cyclePosition() {
 - Analytics integration
 - Social features
 - Cloud sync
-- Push notifications 
+- Push notifications
+
+### Main Menu View
+- Simplified interface: Displays only the title "Poker Slam" and "tap to start" text.
+- Interaction: Tapping anywhere on the screen transitions the user directly to the `GameView`.
+- Styling: Uses `GradientText` for the title with `.appTitle` font and mesh gradient. Uses `IntroMessageTextStyle` modifier for the "tap to start" text.
+
+### Game View Header
+- Displays the current score, animating changes with a tally effect and gradient flash.
+- Indicates when a new high score is achieved.
+- Provides an exit button (X icon) to return to the main menu (updates high score on exit).
+- Provides a help button (? icon) to show the `HandReferenceView` as a sheet. 

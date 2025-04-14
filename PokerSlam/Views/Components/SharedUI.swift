@@ -146,6 +146,11 @@ struct MeshGradientBackground2: View {
 // MARK: - Custom Font Extensions
 
 extension Font {
+    /// Custom font style for the app title
+    static var appTitle: Font {
+        .custom("Kanit-SemiBold", size: 48)
+    }
+    
     /// Custom font style for main buttons in the app
     static var mainButton: Font {
         .custom("Kanit-SemiBold", size: 24)
@@ -180,6 +185,31 @@ extension Font {
     static var scoreValue: Font {
         .custom("Kanit-SemiBold", size: 24)
     }
+    
+    /// Custom font style for the instruction text in HandReferenceView
+    static var handReferenceInstruction: Font {
+        .custom("Kanit-Medium", size: 18)
+    }
+    
+    /// Custom font style for the section headers in HandReferenceView
+    static var handReferenceSectionHeader: Font {
+        .custom("Kanit-Regular", size: 14)
+    }
+    
+    /// Custom font style for the hand title in HandReferenceRow
+    static var handReferenceRowTitle: Font {
+        .custom("Kanit-SemiBold", size: 18)
+    }
+    
+    /// Custom font style for the description in HandReferenceRow
+    static var handReferenceRowDescription: Font {
+        .custom("Kanit-Regular", size: 18)
+    }
+    
+    /// Custom font style for the score in HandReferenceRow
+    static var handReferenceRowScore: Font {
+        .custom("Kanit-SemiBold", size: 24)
+    }
 }
 
 // MARK: - View Extensions
@@ -196,6 +226,16 @@ extension View {
 }
 
 // MARK: - Custom Modifiers
+
+/// A modifier that applies the standard styling for intro messages.
+struct IntroMessageTextStyle: ViewModifier {
+    func body(content: Content) -> some View {
+        content
+            .font(.introMessageText)
+            .foregroundColor(.white.opacity(0.5))
+            .blendMode(.colorDodge)
+    }
+}
 
 /// A modifier that conditionally applies the symbol effect based on iOS version
 struct SymbolEffectModifier: ViewModifier {
