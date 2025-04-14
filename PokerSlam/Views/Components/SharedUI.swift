@@ -185,6 +185,31 @@ extension Font {
     static var scoreValue: Font {
         .custom("Kanit-SemiBold", size: 24)
     }
+    
+    /// Custom font style for the instruction text in HandReferenceView
+    static var handReferenceInstruction: Font {
+        .custom("Kanit-Medium", size: 18)
+    }
+    
+    /// Custom font style for the section headers in HandReferenceView
+    static var handReferenceSectionHeader: Font {
+        .custom("Kanit-Regular", size: 14)
+    }
+    
+    /// Custom font style for the hand title in HandReferenceRow
+    static var handReferenceRowTitle: Font {
+        .custom("Kanit-SemiBold", size: 18)
+    }
+    
+    /// Custom font style for the description in HandReferenceRow
+    static var handReferenceRowDescription: Font {
+        .custom("Kanit-Regular", size: 18)
+    }
+    
+    /// Custom font style for the score in HandReferenceRow
+    static var handReferenceRowScore: Font {
+        .custom("Kanit-SemiBold", size: 24)
+    }
 }
 
 // MARK: - View Extensions

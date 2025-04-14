@@ -205,7 +205,11 @@ struct MeshGradientState {
 - Header: Displays score, exit button (CircularIconButton), and help button (CircularIconButton) to show `HandReferenceView`.
 
 ### Hand Reference View
-- Displayed as a sheet presentation from the `GameView`.
+- Displayed as an overlay from the `GameView` with a smooth crossfade transition.
+- Header: Mimics the `GameView` header's top padding and contains only a top-right close button (`CircularIconButton`).
+- Content: Displays instructional text and poker hand rankings with scoring.
+- Uses custom fonts defined in `SharedUI.swift` for section headers, hand titles, descriptions, and scores.
+- Includes a bottom fade gradient overlay for visual effect.
 - Shows poker hand rankings and scoring.
 - Includes section headers and examples.
 

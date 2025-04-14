@@ -139,9 +139,11 @@ PokerSlam/
 - Optimized state handling for rapid user interactions
 - Responsive button visibility management
 - Smooth entrance and exit transitions for action buttons
+- Smooth crossfade transition for HandReferenceView overlay
 - Specific haptic feedback for game reset action
 - Simplified main menu: Tap anywhere to start the game
 - Updated game header: Displays current score (and indicates new high score), provides access to Hand Reference view, and includes an exit button.
+- Updated HandReferenceView: Presents as an overlay with a top-right close button aligned with the game header, custom fonts, and a bottom fade gradient.
 
 ## 🔧 Technical Implementation
 

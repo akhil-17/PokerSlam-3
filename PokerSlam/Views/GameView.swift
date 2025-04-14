@@ -29,6 +29,7 @@ struct GameView: View {
         ZStack {
             // Single instance of the background
             MeshGradientBackground()
+                .ignoresSafeArea()
 
             // Conditional content based on view state
             if currentViewState == .mainMenu {
@@ -36,13 +37,12 @@ struct GameView: View {
                     .transition(.opacity) // Add transition for fade
             } else {
                 gamePlayContent
+                    .ignoresSafeArea() // Allow game content (and overlay) to extend
                     .transition(.opacity) // Add transition for fade
             }
         }
+        .ignoresSafeArea()
         .animation(.easeInOut(duration: 0.5), value: currentViewState) // Animate state changes
-        .sheet(isPresented: $showingHandReference) {
-            HandReferenceView() // Hand reference can be shown in gamePlay state
-        }
         .onAppear {
             // Initial setup if needed, though viewModel handles its own reset
             setupScoreDisplay()
@@ -96,13 +96,43 @@ struct GameView: View {
 
     /// Content view for the Game Play state
     private var gamePlayContent: some View {
-        // This VStack structure mirrors the old GameContainer's body
-        VStack(spacing: 0) {
-            // Custom Header
-            gameHeader
+        // Wrap in ZStack to allow overlay
+        ZStack {
+            // This VStack structure mirrors the old GameContainer's body
+            VStack(spacing: 0) {
+                // Custom Header
+                gameHeader
 
-            // Main Content Area
-            gameMainContent
+                // Main Content Area
+                gameMainContent
+            }
+            .padding(.top, 4)    // Reduce top padding by 16
+            .padding(.bottom, 36) // Increase bottom padding by 16
+            .disabled(showingHandReference) // Disable game interaction when reference is shown
+
+            // Overlay the HandReferenceView
+            if showingHandReference {
+                HandReferenceView(dismissAction: { showingHandReference = false })
+                    .frame(maxWidth: .infinity, maxHeight: .infinity) // Expand to full size
+                    .ignoresSafeArea() // Make sure overlay content ignores safe area too
+                    .background(.ultraThinMaterial)
+                    .cornerRadius(20) // Apply corner radius to the background layer
+                    .shadow(radius: 10) // Optional: Add a subtle shadow
+                    .transition(.opacity) // <<< Change transition to opacity only
+                    .zIndex(1) // Ensure it's above other content
+            }
+        }
+        .animation(.easeInOut(duration: 0.3), value: showingHandReference) // <<< Add animation for overlay fade
+        .animation(.easeInOut(duration: 0.5), value: currentViewState) // Keep animation for view state change
+        .onAppear {
+            // Initial setup if needed, though viewModel handles its own reset
+            setupScoreDisplay()
+        }
+        .onChange(of: viewModel.score) { _, newScore in
+            handleScoreUpdate(newScore)
+        }
+        .onDisappear {
+            cleanupTimersAndState()
         }
     }
 
@@ -136,8 +166,7 @@ struct GameView: View {
             }
         }
         .padding(.horizontal, 24)
-        .padding(.top, 8)
-        .padding(.bottom, 16)
+        .padding(.top, 20)
     }
     
     /// Score display component for the header
@@ -411,8 +440,7 @@ private struct HandFormationText: View {
                 }
             }
         }
-        .frame(minHeight: 40)
-        .padding(.top, 8)
+        .frame(minHeight: 40, alignment: .top)
     }
 }
 
@@ -488,18 +516,21 @@ private struct CardGridView: View {
 }
 
 struct HandReferenceView: View {
-    @Environment(\.dismiss) private var dismiss
+    let dismissAction: () -> Void
     
     var body: some View {
-        ZStack {
-            MeshGradientBackground()
+        VStack(spacing: 0) {
+            // New header
+            handReferenceHeader
             
-            VStack(spacing: 20) {
-                Text("Poker Hands")
-                    .font(.title)
-                    .fontWeight(.bold)
+            // Content VStack with padding
+            VStack(spacing: 20) { 
+                Text("Connect adjacent cards by tapping on them to create sets of 2-5 cards that form one of the following poker hands")
+                    .font(.handReferenceInstruction)
                     .foregroundColor(.white)
-                
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal)
+                    .padding(.top, 8)
                 ScrollView {
                     VStack(alignment: .leading, spacing: 15) {
                         // 2-card hands (lowest scoring)
@@ -612,19 +643,43 @@ struct HandReferenceView: View {
                         )
                     }
                     .padding()
+                    .padding(.bottom, 48) // Keep bottom padding for scroll space
                 }
-                
-                Button(action: { dismiss() }) {
-                    Text("Close")
-                        .font(.headline)
-                        .foregroundColor(.white)
-                        .padding()
-                        .background(Color.black.opacity(0.3))
-                        .cornerRadius(12)
-                }
-                .padding(.bottom, 30)
+            }
+            .padding(.top, 4) // Keep padding to match gamePlayContent's outer VStack
+            .overlay(alignment: .bottom) { // <<< Apply overlay to the OUTER VStack
+                Rectangle()
+                    .fill(.ultraThinMaterial)
+                    .frame(height: 40)
+                    .mask(
+                        LinearGradient(
+                            gradient: Gradient(stops: [
+                                .init(color: Color.white.opacity(0), location: 0.0),
+                                .init(color: Color.white.opacity(1), location: 0.75),
+                                .init(color: Color.white.opacity(1), location: 1.0)
+                            ]),
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
+                    .ignoresSafeArea(.container, edges: .bottom) // Ensure it goes to the very bottom
             }
         }
+        .padding(.top, 4) // <<< Add this padding to match gamePlayContent's outer VStack
+    }
+
+    // New header view component
+    private var handReferenceHeader: some View {
+        HStack {
+            Spacer() // Push button to the right
+            
+            CircularIconButton(iconName: "xmark") {
+                dismissAction() // Call the dismiss action
+            }
+        }
+        .padding(.horizontal, 24) // Match gameHeader horizontal padding
+        .padding(.top, 68)        // <<< Update this padding value
+        .padding(.bottom, 10)     // Add space below header
     }
 }
 
@@ -634,8 +689,7 @@ struct SectionHeader: View {
     var body: some View {
         HStack(spacing: 8) {
             Text(title.uppercased())
-                .font(.system(size: 12))
-                .fontWeight(.bold)
+                .font(.handReferenceSectionHeader)
                 .foregroundColor(.white.opacity(0.75))
             
             Rectangle()
@@ -656,7 +710,7 @@ struct HandReferenceRow: View {
         HStack(alignment: .center) {
             VStack(alignment: .leading, spacing: 5) {
                 Text(title)
-                    .font(.headline)
+                    .font(.handReferenceRowTitle)
                     .foregroundColor(.white)
                 
                 if let exampleRange = description.range(of: "(e.g.,") {
@@ -680,8 +734,7 @@ struct HandReferenceRow: View {
             Spacer()
             
             Text(score)
-                .font(.system(size: 20))
-                .fontWeight(.bold)
+                .font(.handReferenceRowScore)
                 .foregroundColor(.white)
         }
     }
