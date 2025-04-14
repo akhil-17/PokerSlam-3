@@ -134,52 +134,74 @@ private struct GameContainer: View {
                     Spacer()
                     
                     VStack(spacing: -4) {
-                        // Wrap label in ZStack for gradient animation
+                        // Wrap the score VStack in a ZStack to add the background blur
                         ZStack {
-                            // Original gray label
-                            Text(viewModel.score > gameState.currentScore ? "New high score" : "Score")
-                                .textCase(.uppercase)
-                                .tracking(1)
-                                .font(.scoreLabel)
-                                .foregroundColor(Color(hex: "#999999"))
-                                .opacity(isScoreAnimating ? 0 : 1)
-                            
-                            // Gradient label (visible when animating)
-                            Text(viewModel.score > gameState.currentScore ? "New high score" : "Score")
-                                .textCase(.uppercase)
-                                .tracking(1)
-                                .font(.scoreLabel)
-                                .foregroundStyle(.clear)
-                                .background { MeshGradientBackground2() } // Use Gradient 2
-                                .mask {
+                            // Blurred background rectangle with radial fade mask
+                            Rectangle()
+                                .fill(.ultraThinMaterial)
+                                .blur(radius: 40)
+                                .mask( // Apply radial gradient mask
+                                    RadialGradient(
+                                        gradient: Gradient(colors: [Color.white.opacity(1.0), Color.white.opacity(0.0)]),
+                                        center: .center,
+                                        startRadius: 5, // Start fully opaque near the center
+                                        endRadius: 30 // Fade out at the top/bottom edge
+                                    )
+                                )
+                                .cornerRadius(12) // Optional: Add corner radius for softer edges
+                                .padding(-8) // Slightly expand the background beyond the text
+
+                            VStack(spacing: -4) {
+                                // Wrap label in ZStack for gradient animation
+                                ZStack {
+                                    // Original gray label
                                     Text(viewModel.score > gameState.currentScore ? "New high score" : "Score")
                                         .textCase(.uppercase)
                                         .tracking(1)
                                         .font(.scoreLabel)
+                                        .foregroundColor(Color(hex: "#999999"))
+                                        .blendMode(.colorDodge)
+                                        .opacity(isScoreAnimating ? 0 : 1)
+                                    
+                                    // Gradient label (visible when animating)
+                                    Text(viewModel.score > gameState.currentScore ? "New high score" : "Score")
+                                        .textCase(.uppercase)
+                                        .tracking(1)
+                                        .font(.scoreLabel)
+                                        .foregroundStyle(.clear)
+                                        .background { MeshGradientBackground2() } // Use Gradient 2
+                                        .mask {
+                                            Text(viewModel.score > gameState.currentScore ? "New high score" : "Score")
+                                                .textCase(.uppercase)
+                                                .tracking(1)
+                                                .font(.scoreLabel)
+                                        }
+                                        .opacity(isScoreAnimating ? 1 : 0)
                                 }
-                                .opacity(isScoreAnimating ? 1 : 0)
-                        }
-                        
-                        // Wrap value in ZStack for gradient animation
-                        ZStack {
-                            // Original gray text (visible when not animating)
-                            Text("\(displayedScore)")
-                                .font(.scoreValue)
-                                .foregroundColor(Color(hex: "#999999"))
-                                .opacity(isScoreAnimating ? 0 : 1)
-                            
-                            // Gradient text (visible when animating)
-                            Text("\(displayedScore)")
-                                .font(.scoreValue)
-                                .foregroundStyle(.clear) // Make text clear to show gradient mask
-                                .background {
-                                    MeshGradientBackground2() // Apply gradient 2 as background
-                                }
-                                .mask { // Mask the gradient with the text shape
+                                
+                                // Wrap value in ZStack for gradient animation
+                                ZStack {
+                                    // Original gray text (visible when not animating)
                                     Text("\(displayedScore)")
                                         .font(.scoreValue)
+                                        .foregroundColor(Color(hex: "#999999"))
+                                        .blendMode(.colorDodge)
+                                        .opacity(isScoreAnimating ? 0 : 1)
+                                    
+                                    // Gradient text (visible when animating)
+                                    Text("\(displayedScore)")
+                                        .font(.scoreValue)
+                                        .foregroundStyle(.clear) // Make text clear to show gradient mask
+                                        .background {
+                                            MeshGradientBackground2() // Apply gradient 2 as background
+                                        }
+                                        .mask { // Mask the gradient with the text shape
+                                            Text("\(displayedScore)")
+                                                .font(.scoreValue)
+                                        }
+                                        .opacity(isScoreAnimating ? 1 : 0)
                                 }
-                                .opacity(isScoreAnimating ? 1 : 0)
+                            }
                         }
                     }
                     
