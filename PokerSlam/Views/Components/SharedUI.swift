@@ -958,18 +958,20 @@ struct CircularIconButton: View {
     private let buttonSize: CGFloat = 44
     private let iconSize: CGFloat = 16
     private let strokeWidth: CGFloat = 1
-    private let strokeColor = Color(hex: "#999999").opacity(0.75)
-    private let iconColor = Color(hex: "#999999").opacity(0.75)
+    private let strokeColor = Color(hex: "#d4d4d4").opacity(0.5)
+    private let iconColor = Color(hex: "#d4d4d4").opacity(0.5)
 
     var body: some View {
         Button(action: action) {
             ZStack {
                 Circle()
                     .strokeBorder(strokeColor, lineWidth: strokeWidth)
+                    .blendMode(.colorDodge)
 
                 Image(systemName: iconName)
                     .font(.system(size: iconSize))
                     .foregroundColor(iconColor)
+                    .blendMode(.colorDodge)
             }
             .frame(width: buttonSize, height: buttonSize)
         }

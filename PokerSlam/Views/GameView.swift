@@ -5,6 +5,10 @@ struct GameView: View {
     @EnvironmentObject private var gameState: GameState
     @Environment(\.dismiss) private var dismiss
     @State private var showingHandReference = false
+    @State private var displayedScore: Int = 0 // State for animated score
+    @State private var targetScore: Int = 0 // Target score for animation
+    @State private var scoreUpdateTimer: Timer? // Timer for tally animation
+    @State private var isScoreAnimating: Bool = false // State for gradient animation
     
     var body: some View {
         GameContainer(
@@ -21,6 +25,10 @@ struct GameView: View {
             if viewModel.score > gameState.currentScore {
                 gameState.updateCurrentScore(viewModel.score)
             }
+            // Clean up timer
+            scoreUpdateTimer?.invalidate()
+            scoreUpdateTimer = nil
+            isScoreAnimating = false // Ensure gradient is off if view disappears
         }
     }
 }
@@ -92,7 +100,6 @@ private struct HandFormationText: View {
         }
         .frame(minHeight: 40)
         .padding(.top, 8)
-        .padding(.bottom, 8)
     }
 }
 
@@ -101,6 +108,10 @@ private struct GameContainer: View {
     @ObservedObject var gameState: GameState
     @Binding var showingHandReference: Bool
     @State private var showIntroMessage = true
+    @State private var displayedScore: Int = 0 // State for animated score
+    @State private var targetScore: Int = 0 // Target score for animation
+    @State private var scoreUpdateTimer: Timer? // Timer for tally animation
+    @State private var isScoreAnimating: Bool = false // State for gradient animation
     let dismiss: DismissAction
     
     var body: some View {
@@ -123,14 +134,75 @@ private struct GameContainer: View {
                     Spacer()
                     
                     VStack(spacing: -4) {
-                        Text(viewModel.score > gameState.currentScore ? "New high score" : "Score")
-                            .textCase(.uppercase)
-                            .tracking(1)
-                            .font(.scoreLabel)
-                            .foregroundColor(Color(hex: "#999999"))
-                        Text("\(viewModel.score)")
-                            .font(.scoreValue)
-                            .foregroundColor(Color(hex: "#999999"))
+                        // Wrap the score VStack in a ZStack to add the background blur
+                        ZStack {
+                            // Blurred background rectangle with radial fade mask
+                            Rectangle()
+                                .fill(.ultraThinMaterial)
+                                .blur(radius: 40)
+                                .mask( // Apply radial gradient mask
+                                    RadialGradient(
+                                        gradient: Gradient(colors: [Color.white.opacity(1.0), Color.white.opacity(0.0)]),
+                                        center: .center,
+                                        startRadius: 5, // Start fully opaque near the center
+                                        endRadius: 30 // Fade out at the top/bottom edge
+                                    )
+                                )
+                                .cornerRadius(12) // Optional: Add corner radius for softer edges
+                                .padding(-8) // Slightly expand the background beyond the text
+
+                            VStack(spacing: -4) {
+                                // Wrap label in ZStack for gradient animation
+                                ZStack {
+                                    // Original gray label
+                                    Text(viewModel.score > gameState.currentScore ? "New high score" : "Score")
+                                        .textCase(.uppercase)
+                                        .tracking(1)
+                                        .font(.scoreLabel)
+                                        .foregroundColor(Color(hex: "#999999"))
+                                        .blendMode(.colorDodge)
+                                        .opacity(isScoreAnimating ? 0 : 1)
+                                    
+                                    // Gradient label (visible when animating)
+                                    Text(viewModel.score > gameState.currentScore ? "New high score" : "Score")
+                                        .textCase(.uppercase)
+                                        .tracking(1)
+                                        .font(.scoreLabel)
+                                        .foregroundStyle(.clear)
+                                        .background { MeshGradientBackground2() } // Use Gradient 2
+                                        .mask {
+                                            Text(viewModel.score > gameState.currentScore ? "New high score" : "Score")
+                                                .textCase(.uppercase)
+                                                .tracking(1)
+                                                .font(.scoreLabel)
+                                        }
+                                        .opacity(isScoreAnimating ? 1 : 0)
+                                }
+                                
+                                // Wrap value in ZStack for gradient animation
+                                ZStack {
+                                    // Original gray text (visible when not animating)
+                                    Text("\(displayedScore)")
+                                        .font(.scoreValue)
+                                        .foregroundColor(Color(hex: "#999999"))
+                                        .blendMode(.colorDodge)
+                                        .opacity(isScoreAnimating ? 0 : 1)
+                                    
+                                    // Gradient text (visible when animating)
+                                    Text("\(displayedScore)")
+                                        .font(.scoreValue)
+                                        .foregroundStyle(.clear) // Make text clear to show gradient mask
+                                        .background {
+                                            MeshGradientBackground2() // Apply gradient 2 as background
+                                        }
+                                        .mask { // Mask the gradient with the text shape
+                                            Text("\(displayedScore)")
+                                                .font(.scoreValue)
+                                        }
+                                        .opacity(isScoreAnimating ? 1 : 0)
+                                }
+                            }
+                        }
                     }
                     
                     Spacer()
@@ -141,7 +213,7 @@ private struct GameContainer: View {
                 }
                 .padding(.horizontal, 24)
                 .padding(.top, 8)
-                .padding(.bottom, 4)
+                .padding(.bottom, 16)
                 
                 // Main Content
                 VStack(spacing: 0) {
@@ -202,6 +274,60 @@ private struct GameContainer: View {
                     
                     Spacer()
                 }
+            }
+        }
+        .onAppear { // Initialize displayedScore and targetScore
+            displayedScore = viewModel.score
+            targetScore = viewModel.score
+        }
+        .onChange(of: viewModel.score) { _, newScore in // Tally score animation
+            // Handle instant reset to 0 for "Play Again"
+            if newScore == 0 {
+                scoreUpdateTimer?.invalidate()
+                scoreUpdateTimer = nil
+                isScoreAnimating = false // Instantly turn off gradient
+                displayedScore = 0 // Instantly set score
+                targetScore = 0
+                return // Skip animation logic
+            }
+            
+            // Existing animation logic for normal score changes
+            targetScore = newScore
+            scoreUpdateTimer?.invalidate() // Cancel existing timer
+
+            let difference = newScore - displayedScore
+            guard difference != 0 else { return } // Exit if score hasn't changed from displayed
+
+            // Start fade-in animation for gradient
+            withAnimation(.easeInOut(duration: 1.0)) {
+                isScoreAnimating = true
+            }
+
+            let steps = abs(difference)
+            let totalDuration = Double(steps) * 0.01 // Duration based on score difference (10ms per point)
+            // Use a small minimum interval to prevent division by zero or overly fast updates
+            // Also use a minimum duration to ensure very small score changes are still visible
+            let clampedDuration = max(0.05, totalDuration) // Minimum duration of 50ms
+            let timeInterval = max(0.005, clampedDuration / Double(steps)) 
+            let increment = difference > 0 ? 1 : -1
+
+            scoreUpdateTimer = Timer.scheduledTimer(withTimeInterval: timeInterval, repeats: true) { timer in
+                displayedScore += increment
+
+                // Stop condition: check if reached or passed target
+                if (increment > 0 && displayedScore >= targetScore) || (increment < 0 && displayedScore <= targetScore) {
+                    displayedScore = targetScore // Ensure exact final value
+                    timer.invalidate()
+                    scoreUpdateTimer = nil
+                    // Start fade-out animation for gradient
+                    withAnimation(.easeInOut(duration: 1.0)) {
+                        isScoreAnimating = false
+                    }
+                }
+            }
+            // Add timer to main run loop for common modes to ensure it fires during UI interactions
+            if let timer = scoreUpdateTimer {
+                RunLoop.main.add(timer, forMode: .common)
             }
         }
     }
