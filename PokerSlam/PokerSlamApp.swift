@@ -10,11 +10,13 @@ import SwiftData
 
 @main
 struct PokerSlamApp: App {
+    // Persist game state across sessions
     @StateObject private var gameState = GameState()
     
     var body: some Scene {
         WindowGroup {
-            MainMenuView()
+            // Directly instantiate the refactored GameView
+            GameView()
                 .environmentObject(gameState)
         }
     }

@@ -1,35 +1,348 @@
 import SwiftUI
 
 struct GameView: View {
+    // MARK: - State Enumeration
+    private enum ViewState {
+        case mainMenu
+        case gamePlay
+    }
+
+    // MARK: - Properties
     @StateObject private var viewModel = GameViewModel()
     @EnvironmentObject private var gameState: GameState
-    @Environment(\.dismiss) private var dismiss
-    @State private var showingHandReference = false
-    @State private var displayedScore: Int = 0 // State for animated score
-    @State private var targetScore: Int = 0 // Target score for animation
-    @State private var scoreUpdateTimer: Timer? // Timer for tally animation
-    @State private var isScoreAnimating: Bool = false // State for gradient animation
+    @Environment(\.dismiss) private var dismiss // Keep dismiss for potential future use or app exit
     
+    @State private var currentViewState: ViewState = .mainMenu
+    @State private var showingHandReference = false
+    
+    // Score animation properties (moved from GameContainer)
+    @State private var displayedScore: Int = 0
+    @State private var targetScore: Int = 0
+    @State private var scoreUpdateTimer: Timer?
+    @State private var isScoreAnimating: Bool = false
+    
+    // Intro message state (moved from GameContainer)
+    @State private var showIntroMessage = true
+
+    // MARK: - Body
     var body: some View {
-        GameContainer(
-            viewModel: viewModel,
-            gameState: gameState,
-            showingHandReference: $showingHandReference,
-            dismiss: dismiss
-        )
+        ZStack {
+            // Single instance of the background
+            MeshGradientBackground()
+
+            // Conditional content based on view state
+            if currentViewState == .mainMenu {
+                mainMenuContent
+                    .transition(.opacity) // Add transition for fade
+            } else {
+                gamePlayContent
+                    .transition(.opacity) // Add transition for fade
+            }
+        }
+        .animation(.easeInOut(duration: 0.5), value: currentViewState) // Animate state changes
         .sheet(isPresented: $showingHandReference) {
-            HandReferenceView()
+            HandReferenceView() // Hand reference can be shown in gamePlay state
+        }
+        .onAppear {
+            // Initial setup if needed, though viewModel handles its own reset
+            setupScoreDisplay()
+        }
+        .onChange(of: viewModel.score) { _, newScore in
+            handleScoreUpdate(newScore)
         }
         .onDisappear {
-            // Update high score if current score is higher
-            if viewModel.score > gameState.currentScore {
-                gameState.updateCurrentScore(viewModel.score)
+            cleanupTimersAndState()
+        }
+    }
+
+    // MARK: - View Components
+
+    /// Content view for the Main Menu state
+    private var mainMenuContent: some View {
+        ZStack {
+            // VStack to center the title
+            VStack {
+                Spacer()
+                GradientText(font: .appTitle) {
+                    Text("Poker Slam")
+                }
+                Spacer()
             }
-            // Clean up timer
+            .padding() // Add padding if needed around the title
+            
+            // VStack to position "tap to start" at the bottom
+            VStack {
+                Spacer() // Pushes the text down
+                Text("tap to start")
+                    .modifier(IntroMessageTextStyle()) // Apply the custom modifier
+                    .padding(.bottom, 60) // Adjust padding from bottom as needed
+            }
+        }
+        .contentShape(Rectangle()) // Make the entire area tappable
+        .onTapGesture {
+            // Reset game state when starting
+            Task { @MainActor in
+                viewModel.resetGame() // Removed isNewGame argument
+                // Reset score display immediately for the new game
+                displayedScore = 0
+                targetScore = 0
+                isScoreAnimating = false
+                showIntroMessage = true // Show intro message again
+                // Transition to game play
+                currentViewState = .gamePlay
+            }
+        }
+    }
+
+    /// Content view for the Game Play state
+    private var gamePlayContent: some View {
+        // This VStack structure mirrors the old GameContainer's body
+        VStack(spacing: 0) {
+            // Custom Header
+            gameHeader
+
+            // Main Content Area
+            gameMainContent
+        }
+    }
+
+    /// Header section for the game play view
+    private var gameHeader: some View {
+        HStack {
+            CircularIconButton(iconName: "xmark") {
+                Task { @MainActor in
+                    // Update high score if current score is higher before returning to menu
+                    if viewModel.score > gameState.currentScore {
+                        gameState.updateCurrentScore(viewModel.score)
+                    }
+                    // Reset game and return to main menu state
+                    viewModel.resetGame() // Removed isNewGame argument
+                    // Reset score display when returning to menu
+                    displayedScore = 0
+                    targetScore = 0
+                    isScoreAnimating = false
+                    currentViewState = .mainMenu
+                }
+            }
+            
+            Spacer()
+            
+            scoreDisplay
+            
+            Spacer()
+            
+            CircularIconButton(iconName: "questionmark") {
+                showingHandReference = true
+            }
+        }
+        .padding(.horizontal, 24)
+        .padding(.top, 8)
+        .padding(.bottom, 16)
+    }
+    
+    /// Score display component for the header
+    private var scoreDisplay: some View {
+        VStack(spacing: -4) {
+            ZStack {
+                Rectangle()
+                    .fill(.ultraThinMaterial)
+                    .blur(radius: 40)
+                    .mask(
+                        RadialGradient(
+                            gradient: Gradient(colors: [Color.white.opacity(1.0), Color.white.opacity(0.0)]),
+                            center: .center,
+                            startRadius: 5,
+                            endRadius: 30
+                        )
+                    )
+                    .cornerRadius(12)
+                    .padding(-8)
+
+                VStack(spacing: -4) {
+                    // Score Label (with gradient animation)
+                    ZStack {
+                        Text(viewModel.score > gameState.currentScore ? "New high score" : "Score")
+                            .textCase(.uppercase)
+                            .tracking(1)
+                            .font(.scoreLabel)
+                            .foregroundColor(Color(hex: "#999999"))
+                            .blendMode(.colorDodge)
+                            .opacity(isScoreAnimating ? 0 : 1)
+                        
+                        Text(viewModel.score > gameState.currentScore ? "New high score" : "Score")
+                            .textCase(.uppercase)
+                            .tracking(1)
+                            .font(.scoreLabel)
+                            .foregroundStyle(.clear)
+                            .background { MeshGradientBackground2() }
+                            .mask {
+                                Text(viewModel.score > gameState.currentScore ? "New high score" : "Score")
+                                    .textCase(.uppercase)
+                                    .tracking(1)
+                                    .font(.scoreLabel)
+                            }
+                            .opacity(isScoreAnimating ? 1 : 0)
+                    }
+                    
+                    // Score Value (with gradient animation)
+                    ZStack {
+                        Text("\(displayedScore)")
+                            .font(.scoreValue)
+                            .foregroundColor(Color(hex: "#999999"))
+                            .blendMode(.colorDodge)
+                            .opacity(isScoreAnimating ? 0 : 1)
+                        
+                        Text("\(displayedScore)")
+                            .font(.scoreValue)
+                            .foregroundStyle(.clear)
+                            .background { MeshGradientBackground2() }
+                            .mask {
+                                Text("\(displayedScore)")
+                                    .font(.scoreValue)
+                            }
+                            .opacity(isScoreAnimating ? 1 : 0)
+                    }
+                }
+            }
+        }
+    }
+
+    /// Main content section for the game play view (Hand Text, Grid, Buttons)
+    private var gameMainContent: some View {
+        VStack(spacing: 0) {
+            // Hand Formation Text Display
+            if showIntroMessage && viewModel.currentHandText == nil && !viewModel.isGameOver {
+                HandFormationText(
+                    text: "Connect 2–5 cards to make poker hands",
+                    isAnimating: false,
+                    isGameOver: false
+                )
+            } else {
+                HandFormationText(
+                    text: viewModel.currentHandText,
+                    isAnimating: viewModel.isAnimatingHandText,
+                    isGameOver: viewModel.isGameOver
+                )
+            }
+            
+            // Card Grid Area
+            ZStack {
+                CardGridView(viewModel: viewModel)
+                    .onChange(of: viewModel.selectedCards.count) { oldValue, newValue in
+                        if newValue > 0 {
+                            showIntroMessage = false
+                        }
+                    }
+            }
+            .frame(height: 550)
+            
+            // Bottom Button Area
+            ZStack {
+                if viewModel.isGameOver {
+                    PrimaryButton(
+                        title: "Play again",
+                        icon: "arrow.clockwise",
+                        isAnimated: true,
+                        isErrorState: false,
+                        errorAnimationTimestamp: nil,
+                        action: {
+                            Task { @MainActor in
+                                if viewModel.score > gameState.currentScore {
+                                    gameState.updateCurrentScore(viewModel.score)
+                                }
+                                viewModel.resetGame() // Removed isNewGame argument
+                                // Reset score display for the new game
+                                displayedScore = 0
+                                targetScore = 0
+                                isScoreAnimating = false
+                                showIntroMessage = true
+                            }
+                        }
+                    )
+                    .modifier(SuccessAnimationModifier(isSuccess: viewModel.isResetting))
+                } else {
+                    PlayHandButtonContainer(
+                        viewModel: viewModel,
+                        gameState: gameState
+                    )
+                }
+            }
+            .frame(height: 76)
+            
+            Spacer() // Pushes content up if needed
+        }
+    }
+
+    // MARK: - Helper Methods
+
+    private func setupScoreDisplay() {
+        displayedScore = viewModel.score
+        targetScore = viewModel.score
+    }
+
+    private func handleScoreUpdate(_ newScore: Int) {
+        // Handle instant reset to 0 (e.g., when returning to menu or starting new game)
+        if newScore == 0 && displayedScore != 0 { // Prevent animation if already 0
             scoreUpdateTimer?.invalidate()
             scoreUpdateTimer = nil
-            isScoreAnimating = false // Ensure gradient is off if view disappears
+            isScoreAnimating = false
+            displayedScore = 0
+            targetScore = 0
+            return
         }
+        
+        // Ensure target score is updated
+        targetScore = newScore
+
+        // Cancel existing timer if score changes during animation
+        scoreUpdateTimer?.invalidate()
+
+        let difference = newScore - displayedScore
+        guard difference != 0 else { return }
+
+        // Start gradient animation
+        withAnimation(.easeInOut(duration: 1.0)) {
+            isScoreAnimating = true
+        }
+
+        // Configure tally animation parameters
+        let steps = abs(difference)
+        let totalDuration = Double(steps) * 0.01
+        let clampedDuration = max(0.05, totalDuration)
+        let timeInterval = max(0.005, clampedDuration / Double(steps))
+        let increment = difference > 0 ? 1 : -1
+
+        // Start the timer
+        scoreUpdateTimer = Timer.scheduledTimer(withTimeInterval: timeInterval, repeats: true) { timer in
+            displayedScore += increment
+
+            // Stop condition
+            if (increment > 0 && displayedScore >= targetScore) || (increment < 0 && displayedScore <= targetScore) {
+                displayedScore = targetScore
+                timer.invalidate()
+                scoreUpdateTimer = nil
+                // Fade out gradient animation
+                withAnimation(.easeInOut(duration: 1.0)) {
+                    isScoreAnimating = false
+                }
+            }
+        }
+
+        // Ensure timer runs during UI interactions
+        if let timer = scoreUpdateTimer {
+            RunLoop.main.add(timer, forMode: .common)
+        }
+    }
+
+    private func cleanupTimersAndState() {
+        // Update high score if necessary when the view disappears completely
+        if viewModel.score > gameState.currentScore {
+            gameState.updateCurrentScore(viewModel.score)
+        }
+        // Clean up timer
+        scoreUpdateTimer?.invalidate()
+        scoreUpdateTimer = nil
+        isScoreAnimating = false
     }
 }
 
@@ -103,236 +416,6 @@ private struct HandFormationText: View {
     }
 }
 
-private struct GameContainer: View {
-    @ObservedObject var viewModel: GameViewModel
-    @ObservedObject var gameState: GameState
-    @Binding var showingHandReference: Bool
-    @State private var showIntroMessage = true
-    @State private var displayedScore: Int = 0 // State for animated score
-    @State private var targetScore: Int = 0 // Target score for animation
-    @State private var scoreUpdateTimer: Timer? // Timer for tally animation
-    @State private var isScoreAnimating: Bool = false // State for gradient animation
-    let dismiss: DismissAction
-    
-    var body: some View {
-        ZStack {
-            MeshGradientBackground()
-            
-            VStack(spacing: 0) {
-                // Custom Header
-                HStack {
-                    CircularIconButton(iconName: "xmark") {
-                        Task { @MainActor in
-                            // Update high score if current score is higher
-                            if viewModel.score > gameState.currentScore {
-                                gameState.updateCurrentScore(viewModel.score)
-                            }
-                            dismiss()
-                        }
-                    }
-                    
-                    Spacer()
-                    
-                    VStack(spacing: -4) {
-                        // Wrap the score VStack in a ZStack to add the background blur
-                        ZStack {
-                            // Blurred background rectangle with radial fade mask
-                            Rectangle()
-                                .fill(.ultraThinMaterial)
-                                .blur(radius: 40)
-                                .mask( // Apply radial gradient mask
-                                    RadialGradient(
-                                        gradient: Gradient(colors: [Color.white.opacity(1.0), Color.white.opacity(0.0)]),
-                                        center: .center,
-                                        startRadius: 5, // Start fully opaque near the center
-                                        endRadius: 30 // Fade out at the top/bottom edge
-                                    )
-                                )
-                                .cornerRadius(12) // Optional: Add corner radius for softer edges
-                                .padding(-8) // Slightly expand the background beyond the text
-
-                            VStack(spacing: -4) {
-                                // Wrap label in ZStack for gradient animation
-                                ZStack {
-                                    // Original gray label
-                                    Text(viewModel.score > gameState.currentScore ? "New high score" : "Score")
-                                        .textCase(.uppercase)
-                                        .tracking(1)
-                                        .font(.scoreLabel)
-                                        .foregroundColor(Color(hex: "#999999"))
-                                        .blendMode(.colorDodge)
-                                        .opacity(isScoreAnimating ? 0 : 1)
-                                    
-                                    // Gradient label (visible when animating)
-                                    Text(viewModel.score > gameState.currentScore ? "New high score" : "Score")
-                                        .textCase(.uppercase)
-                                        .tracking(1)
-                                        .font(.scoreLabel)
-                                        .foregroundStyle(.clear)
-                                        .background { MeshGradientBackground2() } // Use Gradient 2
-                                        .mask {
-                                            Text(viewModel.score > gameState.currentScore ? "New high score" : "Score")
-                                                .textCase(.uppercase)
-                                                .tracking(1)
-                                                .font(.scoreLabel)
-                                        }
-                                        .opacity(isScoreAnimating ? 1 : 0)
-                                }
-                                
-                                // Wrap value in ZStack for gradient animation
-                                ZStack {
-                                    // Original gray text (visible when not animating)
-                                    Text("\(displayedScore)")
-                                        .font(.scoreValue)
-                                        .foregroundColor(Color(hex: "#999999"))
-                                        .blendMode(.colorDodge)
-                                        .opacity(isScoreAnimating ? 0 : 1)
-                                    
-                                    // Gradient text (visible when animating)
-                                    Text("\(displayedScore)")
-                                        .font(.scoreValue)
-                                        .foregroundStyle(.clear) // Make text clear to show gradient mask
-                                        .background {
-                                            MeshGradientBackground2() // Apply gradient 2 as background
-                                        }
-                                        .mask { // Mask the gradient with the text shape
-                                            Text("\(displayedScore)")
-                                                .font(.scoreValue)
-                                        }
-                                        .opacity(isScoreAnimating ? 1 : 0)
-                                }
-                            }
-                        }
-                    }
-                    
-                    Spacer()
-                    
-                    CircularIconButton(iconName: "questionmark") {
-                        showingHandReference = true
-                    }
-                }
-                .padding(.horizontal, 24)
-                .padding(.top, 8)
-                .padding(.bottom, 16)
-                
-                // Main Content
-                VStack(spacing: 0) {
-                    if showIntroMessage && viewModel.currentHandText == nil && !viewModel.isGameOver {
-                        HandFormationText(
-                            text: "Connect 2–5 cards to make poker hands",
-                            isAnimating: false,
-                            isGameOver: false
-                        )
-                    } else {
-                        HandFormationText(
-                            text: viewModel.currentHandText,
-                            isAnimating: viewModel.isAnimatingHandText,
-                            isGameOver: viewModel.isGameOver
-                        )
-                    }
-                    
-                    // Fixed height container for the card grid
-                    ZStack {
-                        CardGridView(viewModel: viewModel)
-                            .onChange(of: viewModel.selectedCards.count) { oldValue, newValue in
-                                if newValue > 0 {
-                                    showIntroMessage = false
-                                }
-                            }
-                    }
-                    .frame(height: 550) // Fixed height for the card grid container
-                    
-                    // Fixed height container for bottom buttons
-                    ZStack {
-                        if viewModel.isGameOver {
-                            PrimaryButton(
-                                title: "Play again",
-                                icon: "arrow.clockwise",
-                                isAnimated: true,
-                                isErrorState: false,
-                                errorAnimationTimestamp: nil,
-                                action: {
-                                    Task { @MainActor in
-                                        // Update high score if current score is higher
-                                        if viewModel.score > gameState.currentScore {
-                                            gameState.updateCurrentScore(viewModel.score)
-                                        }
-                                        viewModel.resetGame()
-                                    }
-                                }
-                            )
-                            .modifier(SuccessAnimationModifier(isSuccess: viewModel.isResetting))
-                        } else {
-                            // Use a custom view to handle the animation
-                            PlayHandButtonContainer(
-                                viewModel: viewModel,
-                                gameState: gameState
-                            )
-                        }
-                    }
-                    .frame(height: 76) // Increased from 60 to 76 to accommodate taller buttons
-                    
-                    Spacer()
-                }
-            }
-        }
-        .onAppear { // Initialize displayedScore and targetScore
-            displayedScore = viewModel.score
-            targetScore = viewModel.score
-        }
-        .onChange(of: viewModel.score) { _, newScore in // Tally score animation
-            // Handle instant reset to 0 for "Play Again"
-            if newScore == 0 {
-                scoreUpdateTimer?.invalidate()
-                scoreUpdateTimer = nil
-                isScoreAnimating = false // Instantly turn off gradient
-                displayedScore = 0 // Instantly set score
-                targetScore = 0
-                return // Skip animation logic
-            }
-            
-            // Existing animation logic for normal score changes
-            targetScore = newScore
-            scoreUpdateTimer?.invalidate() // Cancel existing timer
-
-            let difference = newScore - displayedScore
-            guard difference != 0 else { return } // Exit if score hasn't changed from displayed
-
-            // Start fade-in animation for gradient
-            withAnimation(.easeInOut(duration: 1.0)) {
-                isScoreAnimating = true
-            }
-
-            let steps = abs(difference)
-            let totalDuration = Double(steps) * 0.01 // Duration based on score difference (10ms per point)
-            // Use a small minimum interval to prevent division by zero or overly fast updates
-            // Also use a minimum duration to ensure very small score changes are still visible
-            let clampedDuration = max(0.05, totalDuration) // Minimum duration of 50ms
-            let timeInterval = max(0.005, clampedDuration / Double(steps)) 
-            let increment = difference > 0 ? 1 : -1
-
-            scoreUpdateTimer = Timer.scheduledTimer(withTimeInterval: timeInterval, repeats: true) { timer in
-                displayedScore += increment
-
-                // Stop condition: check if reached or passed target
-                if (increment > 0 && displayedScore >= targetScore) || (increment < 0 && displayedScore <= targetScore) {
-                    displayedScore = targetScore // Ensure exact final value
-                    timer.invalidate()
-                    scoreUpdateTimer = nil
-                    // Start fade-out animation for gradient
-                    withAnimation(.easeInOut(duration: 1.0)) {
-                        isScoreAnimating = false
-                    }
-                }
-            }
-            // Add timer to main run loop for common modes to ensure it fires during UI interactions
-            if let timer = scoreUpdateTimer {
-                RunLoop.main.add(timer, forMode: .common)
-            }
-        }
-    }
-}
-
 private struct CardGridView: View {
     @ObservedObject var viewModel: GameViewModel
     @State private var cardFrames: [UUID: CGRect] = [:]
@@ -366,37 +449,11 @@ private struct CardGridView: View {
                                 .background(
                                     GeometryReader { geometry in
                                         Color.clear.onAppear {
-                                            // Calculate the offset for the card
-                                            let offsetX = CGFloat(cardPosition.currentCol - cardPosition.targetCol) * 68
-                                            let offsetY = CGFloat(cardPosition.currentRow - cardPosition.targetRow) * 102
-                                            
-                                            // Create a frame that includes the offset
                                             let frame = geometry.frame(in: .named("cardGrid"))
-                                            let adjustedFrame = CGRect(
-                                                x: frame.minX + offsetX,
-                                                y: frame.minY + offsetY,
-                                                width: frame.width,
-                                                height: frame.height
-                                            )
-                                            
-                                            // Store the adjusted frame for connection lines
-                                            cardFrames[cardPosition.card.id] = adjustedFrame
+                                            cardFrames[cardPosition.card.id] = frame
                                         }
                                         .onChange(of: geometry.frame(in: .named("cardGrid"))) { oldFrame, newFrame in
-                                            // Calculate the offset for the card
-                                            let offsetX = CGFloat(cardPosition.currentCol - cardPosition.targetCol) * 68
-                                            let offsetY = CGFloat(cardPosition.currentRow - cardPosition.targetRow) * 102
-                                            
-                                            // Create a frame that includes the offset
-                                            let adjustedFrame = CGRect(
-                                                x: newFrame.minX + offsetX,
-                                                y: newFrame.minY + offsetY,
-                                                width: newFrame.width,
-                                                height: newFrame.height
-                                            )
-                                            
-                                            // Update the card frame when it changes
-                                            cardFrames[cardPosition.card.id] = adjustedFrame
+                                            cardFrames[cardPosition.card.id] = newFrame
                                         }
                                     }
                                 )
@@ -408,7 +465,6 @@ private struct CardGridView: View {
                                 .animation(.spring(response: 0.3, dampingFraction: 0.7), value: cardPosition.targetCol)
                                 .transition(.opacity.combined(with: .scale))
                             } else {
-                                // Empty space
                                 Color.clear
                                     .frame(width: 64, height: 94)
                             }
@@ -603,7 +659,6 @@ struct HandReferenceRow: View {
                     .font(.headline)
                     .foregroundColor(.white)
                 
-                // Split description and example
                 if let exampleRange = description.range(of: "(e.g.,") {
                     let descriptionText = String(description[..<exampleRange.lowerBound]).trimmingCharacters(in: .whitespaces)
                     let exampleText = String(description[exampleRange.lowerBound...]).trimmingCharacters(in: .whitespaces)
@@ -632,7 +687,6 @@ struct HandReferenceRow: View {
     }
 }
 
-/// A container view that handles the animation of the "Play hand" button
 struct PlayHandButtonContainer: View {
     @ObservedObject var viewModel: GameViewModel
     @ObservedObject var gameState: GameState
@@ -653,7 +707,6 @@ struct PlayHandButtonContainer: View {
                     action: {
                         Task { @MainActor in
                             print("🔘 Button tapped, playing hand")
-                            // Play the hand
                             viewModel.playHand()
                         }
                     }
@@ -667,8 +720,6 @@ struct PlayHandButtonContainer: View {
         .animation(.spring(response: 0.4, dampingFraction: 0.7), value: showButton)
         .onChange(of: viewModel.selectedCards.count) { oldValue, newValue in
             print("🔘 Selected cards count changed: \(oldValue) -> \(newValue), isSuccessState: \(viewModel.isSuccessState), isSuccessAnimating: \(isSuccessAnimating)")
-            
-            // Only update button visibility based on selection count if we're not in the middle of a success animation
             if !isSuccessAnimating {
                 if newValue >= 2 {
                     print("🔘 Showing button due to selection count: \(newValue)")
@@ -682,23 +733,15 @@ struct PlayHandButtonContainer: View {
         }
         .onChange(of: viewModel.isSuccessState) { oldValue, newValue in
             print("🔘 Success state changed: \(oldValue) -> \(newValue)")
-            
-            // When success state becomes true, hide the button and set animation flag
             if newValue == true {
                 print("🔘 Hiding button due to success state")
                 showButton = false
                 isSuccessAnimating = true
-            }
-            // When success state becomes false, wait a moment before checking selection count
-            else if oldValue == true && newValue == false {
+            } else if oldValue == true && newValue == false {
                 print("🔘 Success animation completed, waiting before checking selection count")
-                
-                // Add a small delay before checking selection count to avoid race conditions
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                     print("🔘 Delay completed, checking selection count: \(viewModel.selectedCards.count)")
                     isSuccessAnimating = false
-                    
-                    // Check if we should show the button based on current selection
                     if viewModel.selectedCards.count >= 2 {
                         print("🔘 Showing button after success animation")
                         showButton = true
@@ -708,17 +751,13 @@ struct PlayHandButtonContainer: View {
         }
         .onChange(of: viewModel.errorAnimationTimestamp) { oldValue, newValue in
             if newValue != nil && oldValue == nil {
-                // Start error animation
                 isErrorAnimating = true
-                
-                // Reset after animation completes
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
                     isErrorAnimating = false
                 }
             }
         }
         .onAppear {
-            // Set initial state
             print("🔘 PlayHandButtonContainer appeared, selection count: \(viewModel.selectedCards.count)")
             showButton = viewModel.selectedCards.count >= 2
         }
