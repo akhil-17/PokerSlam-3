@@ -11,24 +11,21 @@ struct CardView: View {
         Button(action: {
             if isInteractive {
                 if isSelected {
-                    onTap() // Unselect if the card is already selected
+                    onTap()
                 } else if isEligible {
-                    onTap() // Select the card if it's eligible
+                    onTap()
                 } else if !isSelected {
-                    onTap() // Unselect all cards if tapping an ineligible card
+                    onTap()
                 }
             }
         }) {
-            // Fixed size container to maintain grid layout
             ZStack {
-                // Card background
                 RoundedRectangle(cornerRadius: 8)
                     .fill(Material.thick)
                     .preferredColorScheme(.dark)
-                    .frame(width: 64, height: 94)
                     .shadow(
-                        color: Color(hex: "#191919").opacity(isSelected ? 0.5 : 0.3),
-                        radius: isSelected ? 4 : 2,
+                        color: isSelected ? Color(hex: "#FFD302").opacity(0.6) : Color(hex: "#191919").opacity(0.3),
+                        radius: isSelected ? 8 : 2,
                         x: 0,
                         y: isSelected ? 4 : 1
                     )
@@ -36,24 +33,37 @@ struct CardView: View {
                         RoundedRectangle(cornerRadius: 8)
                             .stroke(
                                 isSelected ? Color(hex: "#FFD302") : Color.clear,
-                                lineWidth: isSelected ? 1 : 1
+                                lineWidth: isSelected ? 1.5 : 1
                             )
                     )
                 
-                // Card content
                 VStack(spacing: 0) {
                     Text(card.rank.display)
                         .font(.system(size: 28, weight: .semibold, design: .rounded))
                         .foregroundColor(Color(hex: card.suit.color))
+                        .scaleEffect(isSelected ? 1.15 : 1.0)
+                        .animation(
+                            isSelected ?
+                                .easeInOut(duration: 0.8).repeatForever(autoreverses: true) :
+                                .default,
+                            value: isSelected
+                        )
                     
                     Text(card.suit.rawValue)
                         .font(.system(size: 28))
                         .foregroundColor(Color(hex: card.suit.color))
+                        .scaleEffect(isSelected ? 1.15 : 1.0)
+                        .animation(
+                            isSelected ?
+                                .easeInOut(duration: 0.8).repeatForever(autoreverses: true) :
+                                .default,
+                            value: isSelected
+                        )
                 }
             }
-            .frame(width: 64, height: 94) // Fixed container size
-            .contentShape(Rectangle()) // Ensure the entire area is tappable
-            .opacity(isSelected ? 1.0 : (isEligible ? 1.0 : 0.5)) // Selected cards are always 100% opacity, eligible cards are 100% opacity, non-eligible cards are 50% opacity
+            .opacity(isEligible || isSelected ? 1.0 : 0.5) 
+            .frame(width: 64, height: 94) 
+            .contentShape(Rectangle())
         }
         .buttonStyle(PlainButtonStyle())
         .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isSelected)
@@ -64,12 +74,13 @@ struct CardView: View {
 #Preview {
     ZStack {
         MeshGradientBackground()
-        
+            .ignoresSafeArea()
+
         HStack {
             CardView(
                 card: Card(suit: .hearts, rank: .ace),
                 isSelected: false,
-                isEligible: false,
+                isEligible: true, // Make eligible for preview testing
                 isInteractive: true,
                 onTap: {}
             )
@@ -90,8 +101,8 @@ struct CardView: View {
             CardView(
                 card: Card(suit: .clubs, rank: .jack),
                 isSelected: false,
-                isEligible: false,
-                isInteractive: false,
+                isEligible: false, // Ineligible for preview testing
+                isInteractive: true, // Keep interactive to test tap-to-deselect
                 onTap: {}
             )
         }

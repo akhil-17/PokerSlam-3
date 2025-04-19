@@ -47,6 +47,7 @@ struct ConnectionLineView: View {
             path.addLine(to: currentEndPoint)
         }
         .stroke(color, lineWidth: lineWidth)
+        .shadow(color: Color(hex: "#FFD302").opacity(0.6), radius: 8, x: 0, y: 0)
         .onAppear {
             if isAnimated {
                 // Reset animation progress
