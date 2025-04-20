@@ -209,15 +209,44 @@ final class GameViewModel: ObservableObject {
     }
     
     private func dealInitialCards() {
-        cardPositions.removeAll()
+        var initialPositions: [CardPosition] = [] // Create a temporary local array
         for row in 0..<5 {
             for col in 0..<5 {
                 if let card = deck.popLast() {
-                    cardPositions.append(CardPosition(card: card, row: row, col: col))
+                    // Ensure cards are created at their target position
+                    initialPositions.append(CardPosition(card: card, row: row, col: col))
                 }
             }
         }
-        updateEligibleCards()
+        
+        // Clear the main array first
+        cardPositions.removeAll()
+        
+        let baseDelay = 0.1 // Base delay before starting animations
+        let staggerDelayIncrement = 0.01 // 10ms per card
+        
+        // Loop through the generated positions and add them with staggered delays
+        for (_, position) in initialPositions.enumerated() {
+            // Calculate delay based on row-major order
+            let row = position.targetRow
+            let col = position.targetCol
+            let staggerDelay = Double(row * 5 + col) * staggerDelayIncrement
+            let totalDelay = baseDelay + staggerDelay
+            
+            DispatchQueue.main.asyncAfter(deadline: .now() + totalDelay) {
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                    // Append the single card position
+                    self.cardPositions.append(position)
+                }
+                // Play feedback for each card
+                self.newCardFeedback.impactOccurred()
+                
+                // Update eligible cards only after the last card is added
+                if self.cardPositions.count == initialPositions.count {
+                    self.updateEligibleCards()
+                }
+            }
+        }
     }
     
     /// Gets the card at a specific position in the grid

@@ -51,6 +51,22 @@ struct Card: Identifiable, Equatable {
 - Selection state
 - Eligibility tracking
 
+### Falling Rank Model (for animation)
+```swift
+private struct FallingRank: Identifiable {
+    let id = UUID()
+    let symbol: String // SF Symbol name
+    let color: Color
+    var xPosition: CGFloat
+    var yPosition: CGFloat
+    let speed: CGFloat
+    let size: CGFloat
+}
+```
+- Represents a single falling rank symbol in the main menu animation.
+- Tracks symbol, color, position, speed, and size.
+- `Identifiable` for use in `ForEach`.
+
 ### Hand Type Model
 ```swift
 enum HandType: String {
@@ -256,6 +272,12 @@ struct GradientText<Content: View>: View {
 - Accepts a ViewBuilder for flexible content (e.g., GlyphAnimatedText).
 - Applied to intro message, game over message, hand/score text.
 
+### Falling Ranks View
+- Renders the falling suit symbols animation for the main menu background.
+- Uses `Canvas` and `TimelineView` for efficient rendering.
+- Manages its own state for rank positions and spawning.
+- Applies `FallingRankSymbolEffectModifier` for iOS 17+ pulsing effect.
+
 ## View Model Layer Components
 
 ### Game ViewModel
@@ -329,6 +351,12 @@ class BackgroundState: ObservableObject {
 - Animation state
 - Color management
 - iOS version handling
+
+### 3. **State Updates**
+- Reactive updates through SwiftUI
+- Atomic state changes
+- Predictable state flow
+- State updates triggering animations (e.g., in `FallingRanksView`) are handled within `.onChange` modifiers rather than directly during view drawing (`Canvas` closure) to ensure proper update cycles and avoid potential state propagation issues.
 
 ## Data Flow
 
@@ -569,6 +597,7 @@ for col in 0..<5 {
 - Reactive updates through SwiftUI
 - Atomic state changes
 - Predictable state flow
+- State updates triggering animations (e.g., in `FallingRanksView`) are handled within `.onChange` modifiers rather than directly during view drawing (`Canvas` closure) to ensure proper update cycles and avoid potential state propagation issues.
 
 ## Performance Considerations
 

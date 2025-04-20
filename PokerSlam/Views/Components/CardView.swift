@@ -24,7 +24,7 @@ struct CardView: View {
                     .fill(Material.thick)
                     .preferredColorScheme(.dark)
                     .shadow(
-                        color: isSelected ? Color(hex: "#FFD302").opacity(0.6) : Color(hex: "#191919").opacity(0.3),
+                        color: isSelected ? Color(hex: "#FFD302").opacity(0.3) : Color(hex: "#191919").opacity(0.2),
                         radius: isSelected ? 8 : 2,
                         x: 0,
                         y: isSelected ? 4 : 1

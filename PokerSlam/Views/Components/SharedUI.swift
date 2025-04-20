@@ -253,6 +253,20 @@ struct SymbolEffectModifier: ViewModifier {
     }
 }
 
+/// A modifier that applies the breathe/pulse symbol effect for falling ranks
+public struct FallingRankSymbolEffectModifier: ViewModifier {
+    // Add public init if needed for external instantiation, but often not necessary for modifiers.
+    // public init() {}
+    
+    public func body(content: Content) -> some View {
+        if #available(iOS 17.0, *) {
+            content.symbolEffect(.breathe.pulse.byLayer, options: .repeat(.continuous))
+        } else {
+            content // No effect on older versions
+        }
+    }
+}
+
 /// A modifier that applies a pulsing animation to any view
 struct PulsingAnimationModifier: ViewModifier {
     @State private var isPulsing = false
