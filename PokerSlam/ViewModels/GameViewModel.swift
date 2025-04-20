@@ -964,6 +964,7 @@ final class GameViewModel: ObservableObject {
         score = 0
         isGameOver = false
         lastPlayedHand = nil
+        currentHandText = nil
         isErrorState = false
         errorAnimationTimestamp = nil
         isSuccessState = false
