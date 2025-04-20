@@ -15,6 +15,7 @@ PokerSlam is an engaging puzzle game where players create poker hands by selecti
 - Hand reference guide
 - Smooth animations and transitions
 - Modern, clean UI design with animated mesh gradient background
+- Falling ranks animation on the main menu background
 - Intelligent card adjacency rules
 - Dynamic card shifting and filling
 - Visual connection lines between selected cards
@@ -24,6 +25,7 @@ PokerSlam is an engaging puzzle game where players create poker hands by selecti
 - Reusable gradient text component with lighter, animated mesh gradient styling and shadow effect
 - Glyph-by-glyph text animation for key text elements (intro, game over, hand/score)
 - Sequential glyph animation for hand name and score
+- Continuous wave animation effect for specific text/icon elements
 - Replayable glyph animation when text content changes
 - Shared success animation for "Play hand" and "Play again" buttons
 - Distinct haptic feedback for game reset
@@ -73,9 +75,10 @@ PokerSlam/
 │   ├── MainMenuView.swift # Main menu interface (tap to start)
 │   ├── HandReferenceView.swift # Poker hand reference (accessed in-game)
 │   └── Components/        # Reusable UI components
-│       ├── SharedUI.swift # Shared UI components including MeshGradientBackground
+│       ├── SharedUI.swift # Shared UI components including MeshGradientBackground, text/symbol effects
 │       ├── ConnectionLineView.swift # Connection line rendering
 │       └── ConnectionLinesLayer.swift # Connection lines management
+│       └── FallingRanksView.swift # Falling ranks background animation for main menu
 ├── ViewModels/           # View models
 │   └── GameViewModel.swift # Game logic and state management
 ├── Models/               # Data models
@@ -129,9 +132,11 @@ PokerSlam/
 - Animated connection lines between selected cards
 - Rounded corner-aware connection points
 - Animated mesh gradient background with position-based transitions
+- Falling ranks background animation on main menu with blend modes and symbol effects (iOS 17+)
 - Optimized connection path finding for selected cards
 - Lighter mesh gradient styling with shadow for important text elements (intro, game over, hand/score)
 - Glyph-by-glyph text animation for buttons and key text elements
+- Continuous wave effect applied to animated glyphs
 - Sequential character animation (hand name then score) with spring effects and blur transitions
 - Replayable glyph animation when text content changes
 - Enhanced button animations with combined opacity and slide effects

@@ -86,6 +86,10 @@ struct GameView: View {
     /// Content view for the Main Menu state
     private var mainMenuContent: some View {
         ZStack {
+            // Add the falling ranks animation behind everything
+            FallingRanksView()
+                .blendMode(.multiply)
+            
             // VStack to center the title
             VStack {
                 Spacer()

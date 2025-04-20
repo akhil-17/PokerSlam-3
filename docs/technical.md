@@ -16,9 +16,10 @@ PokerSlam/
 ├── Views/                 # SwiftUI Views
 │   ├── GameView.swift     # Main game interface
 │   ├── Components/        # Reusable UI components
-│   │   ├── SharedUI.swift # Shared UI components including MeshGradientBackground
+│   │   ├── SharedUI.swift # Shared UI components including MeshGradientBackground, text/symbol effects
 │   │   ├── ConnectionLineView.swift # Connection line rendering
 │   │   └── ConnectionLinesLayer.swift # Connection lines management
+│   │   └── FallingRanksView.swift # Falling ranks background animation
 │   ├── MainMenuView.swift # Main menu interface (tap to start)
 │   ├── CardView.swift     # Individual card view
 │   └── HandReferenceView.swift # Poker hand reference (accessed in-game)
@@ -431,6 +432,18 @@ struct GlyphAnimatedText: View {
 - Combines opacity, offset, and blur transitions
 - Provides customizable animation timing
 - Replays animation when `text` changes via `.onChange` and `.id`
+
+#### Glyph Wave Animation
+- Uses `WaveEffectModifier` applied to each character in `GlyphAnimatedText`.
+- Creates a continuous, subtle vertical wave motion across the text.
+- Animation syncs with the `TimelineView` when `isWaveAnimating` is true.
+- Wave ramps up/down smoothly when the animation starts/stops.
+
+#### Falling Rank Symbol Effect
+- Uses `FallingRankSymbolEffectModifier` applied to symbols in `FallingRanksView`.
+- Leverages `.symbolEffect(.breathe.pulse.byLayer, options: .repeat(.continuous))` for iOS 17+.
+- Provides a continuous pulsing effect to the falling ranks.
+- Gracefully degrades (no effect) on older iOS versions.
 
 ### 9. Mesh Gradient Background System
 
@@ -871,6 +884,60 @@ struct AppearanceEffectRenderer: TextRenderer, Animatable {
 - `UISelectionFeedbackGenerator`: Used for card selection changes.
 - `UIImpactFeedbackGenerator`: Used for deselection (.light), card shifting (.light), new card appearance (.soft).
 - `UINotificationFeedbackGenerator`: Used for success hand play (.success), error hand play (.error), and game reset (.success).
+
+### 12. Falling Ranks Animation System
+
+#### FallingRanksView
+```swift
+struct FallingRanksView: View {
+    @State private var ranks: [FallingRank] = []
+    private let spawnInterval: TimeInterval = 0.5
+    @State private var lastSpawnTime: Date = Date()
+    private let fixedRankSize: CGFloat = 30.0
+    private let fixedSpeed: CGFloat = 1.0
+    // ... suit definitions ...
+
+    var body: some View {
+        GeometryReader { geometry in
+            TimelineView(.animation(minimumInterval: 0.016)) { timeline in
+                Canvas { context, size in
+                    // Draw ranks using context.resolveSymbol
+                } symbols: {
+                    ForEach(ranks) { rank in
+                         Image(systemName: rank.symbol)
+                             .tag(rank.id)
+                             .font(.system(size: fixedRankSize))
+                             .foregroundStyle(rank.color.opacity(0.5))
+                             .modifier(FallingRankSymbolEffectModifier()) // iOS 17+
+                     }
+                }
+                .onChange(of: timeline.date) { _, newDate in
+                     // Update positions
+                     updateRankPositions(date: newDate, size: geometry.size)
+                     // Spawn new ranks
+                     if newDate.timeIntervalSince(lastSpawnTime) >= spawnInterval {
+                         spawnNewRank(in: geometry.size)
+                         lastSpawnTime = newDate
+                     }
+                 }
+                // ... other modifiers (.clipped, .allowsHitTesting, .mask) ...
+            }
+        }
+        // ...
+    }
+
+    private func updateRankPositions(date: Date, size: CGSize) { /* ... modifies ranks array ... */ }
+    private func spawnNewRank(in size: CGSize) { /* ... adds new rank, checks spacing ... */ }
+}
+```
+- Creates a background animation of falling suit symbols for the main menu.
+- Uses `TimelineView` and `Canvas` for efficient drawing and animation updates.
+- Manages rank positions and spawning using `@State` variables (`ranks`, `lastSpawnTime`).
+- Implements logic (`spawnNewRank`) to ensure ranks are horizontally spaced out near the top, preventing overlap.
+- Ranks fall at a consistent speed (`fixedSpeed`) and maintain a consistent size (`fixedRankSize`).
+- State updates (`updateRankPositions`) are performed within `.onChange` to ensure proper separation from the `Canvas` drawing phase, resolving potential state update issues.
+- Applies a `FallingRankSymbolEffectModifier` for a continuous pulse effect (iOS 17+).
+- Uses a `LinearGradient` mask for a fade-out effect at the bottom.
 
 ## Established Patterns
 
