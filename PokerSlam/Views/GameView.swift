@@ -24,6 +24,10 @@ struct GameView: View {
     // Intro message state (moved from GameContainer)
     @State private var showIntroMessage = true
 
+    // State for title wave animation
+    @State private var isTitleWaveAnimating = false
+    @State private var titleWaveLoopTask: Task<Void, Never>? = nil
+
     // MARK: - Body
     var body: some View {
         ZStack {
@@ -43,15 +47,37 @@ struct GameView: View {
         }
         .ignoresSafeArea()
         .animation(.easeInOut(duration: 0.5), value: currentViewState) // Animate state changes
+        .onChange(of: currentViewState) { oldValue, newValue in
+            if newValue == .mainMenu {
+                 print("State changed TO MainMenu. Starting title wave after delay.")
+                 // Delay slightly to allow transition animation
+                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                      // Check if we are still in the main menu state after delay
+                      if currentViewState == .mainMenu {
+                          startTitleWaveLoop()
+                      }
+                 }
+            } else if oldValue == .mainMenu {
+                 print("State changed FROM MainMenu. Stopping title wave.")
+                 stopTitleWaveLoop()
+            }
+        }
         .onAppear {
             // Initial setup if needed, though viewModel handles its own reset
             setupScoreDisplay()
+            // Start title wave animation if initial state is mainMenu
+            if currentViewState == .mainMenu {
+                print("GameView appeared in MainMenu state. Starting title wave after delay.")
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                     // Re-check state in case it changed very quickly
+                     if currentViewState == .mainMenu {
+                         startTitleWaveLoop()
+                     }
+                }
+            }
         }
         .onChange(of: viewModel.score) { _, newScore in
             handleScoreUpdate(newScore)
-        }
-        .onDisappear {
-            cleanupTimersAndState()
         }
     }
 
@@ -63,9 +89,12 @@ struct GameView: View {
             // VStack to center the title
             VStack {
                 Spacer()
-                GradientText(font: .appTitle) {
-                    Text("Poker Slam")
+                GradientText(font: .gameTitle, applyShadow: false) {
+                    // Pass wave state directly to GlyphAnimatedText
+                    GlyphAnimatedText(text: "Poker Slam", isWaveAnimating: isTitleWaveAnimating)
                 }
+                .blendMode(.colorDodge)
+                .opacity(0.5)
                 Spacer()
             }
             .padding() // Add padding if needed around the title
@@ -80,6 +109,8 @@ struct GameView: View {
         }
         .contentShape(Rectangle()) // Make the entire area tappable
         .onTapGesture {
+            // Stop title animation when leaving menu
+            stopTitleWaveLoop()
             // Reset game state when starting
             Task { @MainActor in
                 viewModel.resetGame() // Removed isNewGame argument
@@ -124,16 +155,6 @@ struct GameView: View {
         }
         .animation(.easeInOut(duration: 0.3), value: showingHandReference) // <<< Add animation for overlay fade
         .animation(.easeInOut(duration: 0.5), value: currentViewState) // Keep animation for view state change
-        .onAppear {
-            // Initial setup if needed, though viewModel handles its own reset
-            setupScoreDisplay()
-        }
-        .onChange(of: viewModel.score) { _, newScore in
-            handleScoreUpdate(newScore)
-        }
-        .onDisappear {
-            cleanupTimersAndState()
-        }
     }
 
     /// Header section for the game play view
@@ -363,15 +384,38 @@ struct GameView: View {
         }
     }
 
-    private func cleanupTimersAndState() {
-        // Update high score if necessary when the view disappears completely
-        if viewModel.score > gameState.currentScore {
-            gameState.updateCurrentScore(viewModel.score)
+    // MARK: - Title Wave Animation Loop Control
+    
+    private func startTitleWaveLoop() {
+        guard titleWaveLoopTask == nil else { return }
+        print("GameView: Starting title wave loop task.")
+        isTitleWaveAnimating = true
+        
+        titleWaveLoopTask = Task { @MainActor in
+            while !Task.isCancelled {
+                do {
+                    try await Task.sleep(for: .milliseconds(100))
+                } catch is CancellationError {
+                    print("GameView: Title wave loop task cancelled.")
+                    break
+                } catch {
+                    print("GameView: Unexpected error in title wave loop: \(error). Stopping loop.")
+                    break
+                }
+            }
+            print("GameView: Exited title wave loop task.")
+            isTitleWaveAnimating = false
+            titleWaveLoopTask = nil
         }
-        // Clean up timer
-        scoreUpdateTimer?.invalidate()
-        scoreUpdateTimer = nil
-        isScoreAnimating = false
+    }
+    
+    private func stopTitleWaveLoop() {
+        if let task = titleWaveLoopTask {
+            print("GameView: Cancelling title wave loop task.")
+            task.cancel()
+            titleWaveLoopTask = nil
+        }
+        isTitleWaveAnimating = false
     }
 }
 
@@ -379,6 +423,11 @@ private struct HandFormationText: View {
     let text: String?
     let isAnimating: Bool
     let isGameOver: Bool
+    
+    // State for wave animation
+    @State private var glyphAnimationComplete = false
+    @State private var isWaveAnimating = false
+    @State private var waveLoopTask: Task<Void, Never>? = nil
     
     private var handName: String? {
         guard let text = text else { return nil }
@@ -409,16 +458,24 @@ private struct HandFormationText: View {
                             font: .handFormationText,
                             tracking: 1
                         ) {
-                            GlyphAnimatedText(text: handName)
+                            GlyphAnimatedText(text: handName, isWaveAnimating: isWaveAnimating)
                         }
                         GradientText(
                             font: .handFormationScoreText,
                             tracking: 1
                         ) {
                             let scoreDelay = Double(handName.count) * 0.03 + 0.1
-                            GlyphAnimatedText(text: scoreText, animationDelay: scoreDelay)
+                            GlyphAnimatedText(text: scoreText, animationDelay: scoreDelay, isWaveAnimating: isWaveAnimating) { 
+                                print("HandFormationText: Score glyph animation reported complete.")
+                                if self.text == text {
+                                    glyphAnimationComplete = true
+                                } else {
+                                     print("HandFormationText: Text changed before score animation completed.")
+                                }
+                            }
                         }
                     }
+                    .id(text)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal)
                     .scaleEffect(isAnimating ? 1.2 : 1.0)
@@ -441,6 +498,71 @@ private struct HandFormationText: View {
             }
         }
         .frame(minHeight: 40, alignment: .top)
+        .onChange(of: text) { _, newText in
+            // Reset wave animation state whenever text changes
+            print("HandFormationText: Text changed to \"\(newText ?? "nil")\". Resetting wave state.")
+            glyphAnimationComplete = false // Mark glyph animation as incomplete
+            // StopWaveLoop is implicitly called by onChange(of: glyphAnimationComplete)
+        }
+        .onChange(of: glyphAnimationComplete) { _, newValue in
+            // Start/stop wave loop when glyph animation completes/resets
+            if newValue {
+                print("HandFormationText: Starting wave loop.")
+                startWaveLoop()
+            } else {
+                 print("HandFormationText: Stopping wave loop.")
+                stopWaveLoop()
+            }
+        }
+        .onDisappear {
+             print("HandFormationText Disappeared. Stopping wave loop.")
+             // Ensure loop stops if view disappears
+             stopWaveLoop()
+        }
+    }
+
+    // MARK: - Wave Animation Loop Control
+    
+    private func startWaveLoop() {
+        // Prevent multiple loops
+        guard waveLoopTask == nil, glyphAnimationComplete else { return }
+        
+        print("HandFormationText: Starting new continuous wave loop task.")
+        isWaveAnimating = true 
+        
+        waveLoopTask = Task { @MainActor in
+            while glyphAnimationComplete && !Task.isCancelled {
+                do {
+                    try await Task.sleep(for: .milliseconds(100))
+                } catch is CancellationError {
+                    print("HandFormationText: Continuous wave loop task cancelled.")
+                    break
+                } catch {
+                    print("HandFormationText: Unexpected error in continuous wave loop: \(error). Stopping loop.")
+                    break
+                }
+            }
+            print("HandFormationText: Exited continuous wave loop task.")
+            isWaveAnimating = false
+            waveLoopTask = nil
+        }
+    }
+    
+    private func stopWaveLoop() {
+        if let task = waveLoopTask {
+            print("HandFormationText: Cancelling wave loop task.")
+            task.cancel()
+            waveLoopTask = nil
+        }
+        // Explicitly set animating to false
+        isWaveAnimating = false
+        // Also ensure glyph animation is marked as incomplete if we stop the loop early
+        // This prevents restart if text hasn't changed but disappear/reappear happens.
+        if glyphAnimationComplete { 
+             // glyphAnimationComplete = false 
+             // ^ Careful: This might cause issues if text didn't actually change. 
+             // Let's rely on onChange(of: text) to reset it properly.
+        }
     }
 }
 

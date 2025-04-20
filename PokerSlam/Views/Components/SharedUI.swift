@@ -151,6 +151,11 @@ extension Font {
         .custom("Kanit-SemiBold", size: 48)
     }
     
+    /// Custom font style for the game title (initially same as appTitle)
+    static var gameTitle: Font {
+        .custom("Kanit-SemiBold", size: 48)
+    }
+    
     /// Custom font style for main buttons in the app
     static var mainButton: Font {
         .custom("Kanit-SemiBold", size: 24)
@@ -621,6 +626,11 @@ struct PrimaryButton: View {
     @State private var isWiggling: Bool = false
     @State private var isButtonTapped: Bool = false
     
+    // State for wave animation
+    @State private var initialAppearanceComplete = false
+    @State private var isWaveAnimating = false
+    @State private var waveLoopTask: Task<Void, Never>? = nil
+    
     // MARK: - Initialization
     
     init(
@@ -650,7 +660,7 @@ struct PrimaryButton: View {
         }) {
             HStack(spacing: 8) {
                 // Text with mesh gradient effect and sequential animation
-                ButtonTextLabel(text: title)
+                ButtonTextLabel(text: title, isWaveAnimating: isWaveAnimating)
                     .transition(TextTransition())
                     .offset(y: isVisible ? 0 : textOffset)
                     .opacity(isVisible ? 1 : 0)
@@ -664,7 +674,7 @@ struct PrimaryButton: View {
                 
                 if let icon = icon {
                     // Icon with mesh gradient effect
-                    ButtonIconLabel(systemName: icon, isAnimated: isAnimated)
+                    ButtonIconLabel(systemName: icon, isAnimated: isWaveAnimating)
                         .offset(y: isVisible ? 0 : textOffset)
                         .opacity(isVisible ? 1 : 0)
                         .blur(radius: isVisible ? 0 : 5)
@@ -683,9 +693,15 @@ struct PrimaryButton: View {
                 MeshGradientBackground2()
                     .mask(
                         RoundedRectangle(cornerRadius: 40)
-                            .stroke(.white.opacity(0.60), lineWidth: 16)
+                            .stroke(.white.opacity(0.60), lineWidth: 8)
                             .blur(radius: 4)
                             .blendMode(.colorDodge)
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 40)
+                            .stroke(Color(hex: "#FFD302").opacity(0.6), lineWidth: 24) // Use yellow color
+                            .blur(radius: 4) // Apply blur for the glow effect
+                            .blendMode(.overlay) // Use colorDodge for glow
                     )
                     .overlay(
                         RoundedRectangle(cornerRadius: 40)
@@ -699,6 +715,8 @@ struct PrimaryButton: View {
                             .blur(radius: 1)
                             .blendMode(.multiply)
                     )
+                    // Add the inner yellow glow here, within the first background layer
+                    
             )
             .background(Color(hex: "#0D092B"))
             .cornerRadius(40)
@@ -723,22 +741,92 @@ struct PrimaryButton: View {
             }
         }
         .onAppear {
-            // Trigger the text animation with minimal delay
+            print("PrimaryButton \"\(title)\" Appeared")
+            // Delay setting initial appearance complete to allow entrance animation
+            // Existing animation takes roughly 0.4s + 0.05s delay
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.75) { // Increased delay to 0.75s
+                print("PrimaryButton \"\(title)\": Initial appearance complete")
+                initialAppearanceComplete = true
+            }
+
+            // Trigger the text entrance animation with minimal delay (as before)
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
                 withAnimation(.spring(response: 0.4, dampingFraction: 0.7, blendDuration: 0.3)) {
                     isVisible = true
                 }
             }
         }
+        .onChange(of: initialAppearanceComplete) { _, newValue in
+            // Start wave loop when initial appearance is complete
+            if newValue {
+                print("PrimaryButton \"\(title)\": Initial appearance complete. Starting wave loop.")
+                startWaveLoop()
+            } else {
+                print("PrimaryButton \"\(title)\": Appearance no longer complete (e.g., disappear). Stopping wave loop.")
+                stopWaveLoop()
+            }
+        }
+        .onDisappear {
+             print("PrimaryButton \"\(title)\" Disappeared. Stopping wave loop.")
+             // Ensure loop stops if button disappears
+             initialAppearanceComplete = false // This triggers onChange to stop the loop
+             stopWaveLoop()
+        }
+    }
+
+    // MARK: - Wave Animation Loop Control
+    
+    private func startWaveLoop() {
+        guard waveLoopTask == nil, initialAppearanceComplete else { return }
+        
+        print("PrimaryButton \"\(title)\": Starting new continuous wave loop task.")
+        // Set wave animating immediately
+        isWaveAnimating = true 
+        
+        waveLoopTask = Task { @MainActor in
+            // Loop keeps running as long as the button is visible and not cancelled
+            while initialAppearanceComplete && !Task.isCancelled {
+                do {
+                    // Sleep for a short duration to prevent a tight loop and allow cancellation checks
+                    try await Task.sleep(for: .milliseconds(100))
+                } catch is CancellationError {
+                    print("PrimaryButton \"\(title)\": Continuous wave loop task cancelled.")
+                    break // Exit loop if cancelled
+                } catch {
+                    print("PrimaryButton \"\(title)\": Unexpected error in continuous wave loop: \(error). Stopping loop.")
+                    break // Exit on other errors
+                }
+            }
+            // Ensure wave animation stops when the loop finishes or is cancelled
+            print("PrimaryButton \"\(title)\": Exited continuous wave loop task.")
+            if Task.isCancelled {
+                 print("PrimaryButton \"\(title)\": Task was cancelled.")
+            }
+            isWaveAnimating = false
+            waveLoopTask = nil // Clear the task reference
+        }
+    }
+    
+    private func stopWaveLoop() {
+        if let task = waveLoopTask {
+            print("PrimaryButton \"\(title)\": Cancelling wave loop task.")
+            task.cancel()
+            waveLoopTask = nil
+        } else {
+            print("PrimaryButton \"\(title)\": No wave loop task to stop.")
+        }
+        // Explicitly set animating to false, in case cancellation is delayed
+        isWaveAnimating = false
     }
 }
 
 /// A view that displays text with a mesh gradient effect
 struct ButtonTextLabel: View {
     let text: String
+    let isWaveAnimating: Bool
     
     var body: some View {
-        GlyphAnimatedText(text: text)
+        GlyphAnimatedText(text: text, isWaveAnimating: isWaveAnimating)
             .font(.mainButton)
             .foregroundStyle(.clear)
             .background(
@@ -764,7 +852,7 @@ struct ButtonTextLabel: View {
                 }
             )
             .mask(
-                GlyphAnimatedText(text: text)
+                GlyphAnimatedText(text: text, isWaveAnimating: isWaveAnimating)
                     .font(.mainButton)
             )
     }
@@ -792,45 +880,107 @@ struct ButtonTextLabel: View {
     }
 }
 
-/// A view that animates text with a glyph-by-glyph animation
+/// A view that animates text with a glyph-by-glyph appearance and optional wave effect
 struct GlyphAnimatedText: View {
     let text: String
     let animationDelay: Double
+    let isWaveAnimating: Bool
+    var onGlyphAnimationComplete: (() -> Void)? = nil // Add completion handler
+    
     @State private var visibleGlyphs: Int = 0
     
-    init(text: String, animationDelay: Double = 0.0) {
+    // Convenience initializer if completion handler is not needed
+    init(text: String, animationDelay: Double = 0.0, isWaveAnimating: Bool = false) {
         self.text = text
         self.animationDelay = animationDelay
+        self.isWaveAnimating = isWaveAnimating
+        self.onGlyphAnimationComplete = nil
+    }
+    
+    // Initializer to accept completion handler
+    init(text: String, animationDelay: Double = 0.0, isWaveAnimating: Bool = false, onComplete: (() -> Void)?) {
+        self.text = text
+        self.animationDelay = animationDelay
+        self.isWaveAnimating = isWaveAnimating
+        self.onGlyphAnimationComplete = onComplete
     }
     
     var body: some View {
         HStack(spacing: 0) {
-            ForEach(Array(text.enumerated()), id: \.offset) { index, character in
+            let characters = Array(text.enumerated())
+            ForEach(characters, id: \.offset) { index, character in
                 Text(String(character))
                     .opacity(index < visibleGlyphs ? 1 : 0)
                     .offset(y: index < visibleGlyphs ? 0 : 20)
                     .blur(radius: index < visibleGlyphs ? 0 : 5)
+                    // Apply wave modifier to each character
+                    .modifier(WaveEffectModifier(
+                        isAnimating: isWaveAnimating && visibleGlyphs == text.count, // Only wave when fully visible
+                        characterIndex: index,
+                        characterCount: characters.count,
+                        amplitude: 1.0,
+                        frequency: 3.0, // Adjust frequency for wave speed
+                        phaseShiftPerCharacter: 0.5 // Adjust for wave length
+                    ))
             }
         }
-        .id(text)
+        .id(text) // Use text as ID to trigger reset on change
         .onAppear {
+            print("GlyphAnimatedText appeared for \"\(text)\". isWaveAnimating: \(isWaveAnimating)")
             animateGlyphs()
         }
         .onChange(of: text) {
+            print("GlyphAnimatedText text changed to \"\(text)\". Resetting.")
             resetAndAnimateGlyphs()
+        }
+        .onChange(of: isWaveAnimating) { _, newValue in
+             print("GlyphAnimatedText isWaveAnimating changed to \(newValue) for \"\(text)\"")
+             // If wave starts, ensure glyphs are visible (might be redundant if logic works)
+             if newValue && visibleGlyphs < text.count {
+                 // visibleGlyphs = text.count // Instantly show?
+                 // Or maybe let WaveEffectModifier handle visibility via isAnimating condition
+             }
         }
     }
 
     private func animateGlyphs() {
-        // Apply initial delay before starting the animation loop
+        print("GlyphAnimatedText: Starting appear animation for \"\(text)\"")
+        visibleGlyphs = 0 // Ensure reset before starting
         DispatchQueue.main.asyncAfter(deadline: .now() + animationDelay) {
-            // Animate each glyph sequentially
-            for i in 0..<text.count {
-                DispatchQueue.main.asyncAfter(deadline: .now() + Double(i) * 0.03) {
-                    // Ensure the text hasn't changed again before updating visibleGlyphs
-                    if self.visibleGlyphs == i {
+            let charCount = text.count
+            guard charCount > 0 else { 
+                onGlyphAnimationComplete?()
+                return // No animation needed for empty string
+            }
+
+            for i in 0..<charCount {
+                let glyphDelay = Double(i) * 0.03
+                DispatchQueue.main.asyncAfter(deadline: .now() + glyphDelay) {
+                    // Check if text changed during animation setup
+                    guard self.text == text else { 
+                         print("GlyphAnimatedText: Text changed during appear animation. Aborting for index \(i).")
+                         return 
+                    }
+                    if self.visibleGlyphs == i { // Animate only if it's the next glyph
                         withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
                             visibleGlyphs = i + 1
+                             print("GlyphAnimatedText: Showing glyph \(i+1)/\(charCount) for \"\(text)\"")
+                        }
+                    } else {
+                         // This can happen if resetAndAnimateGlyphs was called
+                         print("GlyphAnimatedText: Skipping glyph \(i) animation, visibleGlyphs is \(visibleGlyphs).")
+                    }
+                }
+                
+                // Schedule completion handler after the last glyph animation starts + its duration
+                if i == charCount - 1 {
+                    let lastGlyphSpringDuration = 0.4 // Approximate duration of the spring animation
+                    let completionDelay = glyphDelay + lastGlyphSpringDuration + 0.1 // Add buffer
+                    DispatchQueue.main.asyncAfter(deadline: .now() + completionDelay) {
+                        // Check if text is still the same before calling completion
+                        if self.text == text {
+                            print("GlyphAnimatedText: \"\(text)\" animation complete. Calling handler.")
+                            onGlyphAnimationComplete?()
                         }
                     }
                 }
@@ -839,8 +989,9 @@ struct GlyphAnimatedText: View {
     }
 
     private func resetAndAnimateGlyphs() {
-        visibleGlyphs = 0 // Reset visibility
-        // No delay needed on reset, animation itself will be delayed by animateGlyphs in animateGlyphs
+        print("GlyphAnimatedText: Resetting and animating for \"\(text)\"")
+        visibleGlyphs = 0 // Reset visibility immediately
+        // Debounce or cancel previous animations if necessary? No, ID change handles this.
         animateGlyphs() // Start animation for new text
     }
 }
@@ -914,17 +1065,20 @@ struct GradientText<Content: View>: View {
     let font: Font
     let tracking: CGFloat
     let isAnimated: Bool
+    let applyShadow: Bool
 
     init(
         font: Font,
         tracking: CGFloat = 0,
         isAnimated: Bool = false,
+        applyShadow: Bool = true,
         @ViewBuilder content: () -> Content
     ) {
         self.content = content()
         self.font = font
         self.tracking = tracking
         self.isAnimated = isAnimated
+        self.applyShadow = applyShadow
     }
 
     var body: some View {
@@ -959,7 +1113,10 @@ struct GradientText<Content: View>: View {
                     .font(font)
                     .tracking(tracking)
             )
-            .shadow(color: .black.opacity(0.5), radius: 2, x: 0, y: 1)
+            // Conditionally apply the shadow
+            .if(applyShadow) { view in
+                view.shadow(color: .black.opacity(0.5), radius: 2, x: 0, y: 1)
+            }
             .if(isAnimated) { view in
                 view.modifier(PulsingAnimationModifier())
             }
@@ -998,8 +1155,8 @@ struct CircularIconButton: View {
     private let buttonSize: CGFloat = 44
     private let iconSize: CGFloat = 16
     private let strokeWidth: CGFloat = 1
-    private let strokeColor = Color(hex: "#d4d4d4").opacity(0.5)
-    private let iconColor = Color(hex: "#d4d4d4").opacity(0.5)
+    private let strokeColor = Color(hex: "#d4d4d4").opacity(0.7)
+    private let iconColor = Color(hex: "#d4d4d4").opacity(0.7)
 
     var body: some View {
         Button(action: action) {
@@ -1021,34 +1178,34 @@ struct CircularIconButton: View {
 // MARK: - Preview
 
 #Preview {
-    VStack(spacing: 0) {
-        MeshGradientBackground()
-            .frame(height: 300)
-        
-        MeshGradientBackground2()
-            .frame(height: 300)
-        
-        PrimaryButton(
-            title: "Play hand",
-            icon: "play.fill",
-            isAnimated: true,
-            isErrorState: false,
-            errorAnimationTimestamp: nil,
-            isSuccessState: false
-        ) {
-            print("Play hand tapped")
+    ZStack { // Use ZStack for layering
+        MeshGradientBackground() // Background layer
+            .ignoresSafeArea()
+
+        VStack(spacing: 20) { // VStack for buttons on top
+            PrimaryButton(
+                title: "Play hand",
+                icon: "play.fill",
+                isAnimated: true,
+                isErrorState: false,
+                errorAnimationTimestamp: nil,
+                isSuccessState: false
+            ) {
+                print("Play hand tapped")
+            }
+            
+            PrimaryButton(
+                title: "Play again",
+                icon: "arrow.clockwise",
+                isAnimated: true,
+                isErrorState: false,
+                errorAnimationTimestamp: nil,
+                isSuccessState: false
+            ) {
+                print("Play again tapped")
+            }
         }
-        
-        PrimaryButton(
-            title: "Play again",
-            icon: "arrow.clockwise",
-            isAnimated: true,
-            isErrorState: false,
-            errorAnimationTimestamp: nil,
-            isSuccessState: false
-        ) {
-            print("Play again tapped")
-        }
+        .padding() // Add padding around the VStack if needed
     }
 } 
 
@@ -1140,4 +1297,85 @@ struct AnimationPreview: View {
 
 #Preview("Animation Preview") {
     AnimationPreview()
+} 
+
+// MARK: - Wave Animation Modifier
+
+@MainActor
+struct WaveEffectModifier: ViewModifier {
+    let isAnimating: Bool
+    let characterIndex: Int
+    let characterCount: Int
+    let amplitude: CGFloat
+    let frequency: Double
+    let phaseShiftPerCharacter: Double
+    
+    @State private var time: TimeInterval = 0.0
+    // State for smooth transition
+    @State private var transitionProgress: CGFloat = 0.0
+    private let transitionDuration: TimeInterval = 0.5 // Duration for wave to ramp up
+    
+    func body(content: Content) -> some View {
+        content
+            .offset(y: calculateOffsetY())
+            // Apply animation only to the transitionProgress changes, not the time-driven offset
+            .animation(.smooth(duration: transitionDuration), value: transitionProgress)
+            .background(
+                TimelineView(.animation(minimumInterval: 0.016, paused: !isAnimating)) { timeline in
+                    Color.clear
+                        .onChange(of: timeline.date) { _, newDate in
+                            // Update time state based on timeline only if animating
+                            if isAnimating {
+                                self.time = newDate.timeIntervalSinceReferenceDate
+                            }
+                        }
+                }
+            )
+            .onChange(of: isAnimating) { _, newValue in
+                // Animate transitionProgress when isAnimating changes
+                if newValue {
+                    // Start transition to full wave
+                    transitionProgress = 1.0
+                } else {
+                    // Reset transition when stopping
+                    transitionProgress = 0.0
+                    // Reset time immediately when stopping
+                    time = 0.0
+                }
+            }
+            .onAppear {
+                 // Set initial state based on isAnimating
+                 transitionProgress = isAnimating ? 1.0 : 0.0
+                 // Reset time on appear only if not already animating (e.g., initial load)
+                 if !isAnimating {
+                    time = 0.0
+                 }
+            }
+    }
+    
+    private func calculateOffsetY() -> CGFloat {
+        // Always calculate the potential offset based on time
+        let phase = time * frequency
+        let reversedIndex = Double(characterCount - 1 - characterIndex)
+        let charPhaseOffset = reversedIndex * phaseShiftPerCharacter
+        let waveOffset = sin(phase + charPhaseOffset) * amplitude
+        
+        // Apply the transition progress to smoothly ramp up/down the wave
+        return waveOffset * transitionProgress
+    }
+}
+
+#Preview {
+    Text("Wave Animation Modifier Preview")
+        .font(.largeTitle)
+        .foregroundColor(.white)
+        .background(Color.black)
+        .modifier(WaveEffectModifier(
+            isAnimating: true,
+            characterIndex: 0,
+            characterCount: 10,
+            amplitude: 10.0,
+            frequency: 2.0,
+            phaseShiftPerCharacter: 0.5
+        ))
 } 
