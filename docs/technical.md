@@ -22,7 +22,7 @@ PokerSlam/
 │   │   └── FallingRanksView.swift # Falling ranks background animation
 │   ├── MainMenuView.swift # Main menu interface (tap to start)
 │   ├── CardView.swift     # Individual card view
-│   └── HandReferenceView.swift # Poker hand reference (accessed in-game)
+│   └── HandReferenceView.swift # Poker hand reference overlay
 │   └── ...
 ├── ViewModels/           # View Models
 ├── Models/               # Data Models
@@ -1136,4 +1136,17 @@ private func cyclePosition() {
 - Displays the current score, animating changes with a tally effect and gradient flash.
 - Indicates when a new high score is achieved.
 - Provides an exit button (X icon) to return to the main menu (updates high score on exit).
-- Provides a help button (? icon) to show the `HandReferenceView` as a sheet. 
+- Provides a help button (? icon) to show the `HandReferenceView` as a sheet.
+- Displays a help button (? icon) using `CircularIconButton` to toggle the `HandReferenceView` overlay.
+
+### Hand Reference View
+- **Presentation:** Displayed as an overlay within `GameView` controlled by `@State var showingHandReference`.
+- **Transition:** Uses `.transition(.opacity)` for fade-in/out.
+- **Background:** Applied using `.background(.ultraThinMaterial)` with corner radius and shadow.
+- **Header:** Custom header with `CircularIconButton` (`xmark`) for dismissal.
+- **Content Structure:** Uses `ScrollView`, `SectionHeader`, and `HandReferenceRow` for layout.
+- **Custom Fonts:** Utilizes fonts defined in `SharedUI.swift` (e.g., `.handReferenceInstruction`, `.handReferenceRowTitle`).
+- **Mini Card Previews:** `HandReferenceRow` parses example hand strings (e.g., "(e.g., 5♠ 5♥)") using `parseExampleCards` helper and displays corresponding `CardView` instances with `style: .mini`.
+- **CardView Mini Style:** A new style in `CardView` reducing size and font size for preview purposes.
+- **Bottom Fade:** Uses a `Rectangle` masked with a `LinearGradient` to create a fade effect at the bottom of the scroll view.
+- **Dismissal:** Controlled via `dismissAction` closure passed from `GameView`. 

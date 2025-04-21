@@ -214,20 +214,19 @@ struct MeshGradientState {
 
 ### Game View
 - Main game interface
-- View composition: Uses `GameContainer` for structure.
+- View composition: Organizes content using `gameHeader` and `gameMainContent` computed properties.
 - State observation: Observes `GameViewModel` and `GameState`.
-- User interaction: Handles card selection taps, exit button, and help button taps.
+- User interaction: Handles card selection taps, exit button (`CircularIconButton`), and help button (`CircularIconButton`) taps.
 - Layout management: Uses `VStack`, `HStack`, `ZStack`, `Spacer` for layout.
-- Header: Displays score, exit button (CircularIconButton), and help button (CircularIconButton) to show `HandReferenceView`.
+- Header: Displays score (with animation), exit button, and help button to toggle `HandReferenceView` overlay.
+- Hand Reference Presentation: Manages the presentation of `HandReferenceView` as an overlay using `@State var showingHandReference`.
 
 ### Hand Reference View
-- Displayed as an overlay from the `GameView` with a smooth crossfade transition.
-- Header: Mimics the `GameView` header's top padding and contains only a top-right close button (`CircularIconButton`).
-- Content: Displays instructional text and poker hand rankings with scoring.
-- Uses custom fonts defined in `SharedUI.swift` for section headers, hand titles, descriptions, and scores.
-- Includes a bottom fade gradient overlay for visual effect.
-- Shows poker hand rankings and scoring.
-- Includes section headers and examples.
+- **Presentation:** Rendered as an overlay within `GameView`, toggled by the help button in the `GameView` header.
+- **Structure:** Contains a dedicated header with a `CircularIconButton` for dismissal, a `ScrollView` for content, and utilizes `SectionHeader` and `HandReferenceRow` for displaying hand details.
+- **Content:** Shows instructional text, poker hand rankings, and scores.
+- **UI Details:** Uses custom fonts (`.handReference*`), an `.ultraThinMaterial` background, a bottom fade gradient, and an opacity transition.
+- **Mini Card Previews:** `HandReferenceRow` includes a helper function (`parseExampleCards`) to extract card examples from description strings and renders them using `CardView` with a `.mini` style.
 
 ### Card Grid View
 - Card layout

@@ -30,8 +30,8 @@ PokerSlam is an engaging puzzle game where players create poker hands by selecti
 - Shared success animation for "Play hand" and "Play again" buttons
 - Distinct haptic feedback for game reset
 - Simplified main menu (tap anywhere to start)
-- In-game access to hand reference guide
-- Enhanced game header with score display
+- Enhanced game header with score display, exit button, and help button for Hand Reference access.
+- Updated HandReferenceView: Presented as an overlay with a top-right close button, custom fonts, mini card previews for examples, and a bottom fade gradient.
 
 ### Game Rules
 - Cards must be adjacent to be selected
@@ -147,8 +147,14 @@ PokerSlam/
 - Smooth crossfade transition for HandReferenceView overlay
 - Specific haptic feedback for game reset action
 - Simplified main menu: Tap anywhere to start the game
-- Updated game header: Displays current score (and indicates new high score), provides access to Hand Reference view, and includes an exit button.
-- Updated HandReferenceView: Presents as an overlay with a top-right close button aligned with the game header, custom fonts, and a bottom fade gradient.
+- **Updated Game Header:** Displays current score (animating updates and indicating new high scores), provides an exit button (`X`) to return to the main menu, and a help button (`?`) to access the Hand Reference view.
+- **Updated HandReferenceView:**
+    - Presented as a modal overlay within the `GameView` using an `.ultraThinMaterial` background and a smooth opacity transition.
+    - Features a dedicated header with a close button (`X`) using `CircularIconButton`.
+    - Uses custom fonts (`.handReferenceInstruction`, `.handReferenceSectionHeader`, etc.) for better readability and consistent styling.
+    - Includes mini card previews (`CardView(style: .mini)`) within each `HandReferenceRow` to visually represent example hands.
+    - Implements a bottom fade gradient overlay for a polished look.
+    - Contains `SectionHeader` and `HandReferenceRow` sub-components for structured content presentation.
 
 ## 🔧 Technical Implementation
 
