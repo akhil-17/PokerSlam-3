@@ -650,20 +650,21 @@ struct HandReferenceView: View {
             handReferenceHeader
             
             // Content VStack with padding
-            VStack(spacing: 20) { 
-                Text("Connect adjacent cards by tapping on them to create sets of 2-5 cards that form one of the following poker hands")
-                    .font(.handReferenceInstruction)
-                    .foregroundColor(.white)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal)
-                    .padding(.top, 8)
+            VStack(spacing: 20) {
                 ScrollView {
-                    VStack(alignment: .leading, spacing: 15) {
+                    VStack(alignment: .leading, spacing: 23) {
+                        Text("Create sets of 2-5 poker hands and score! Adjacent cards can be selected horizontally, vertically, or diagonally.")
+                            .font(.handReferenceInstruction)
+                            .foregroundColor(.white)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal)
+                            .padding(.bottom, 5)
+
                         // 2-card hands (lowest scoring)
                         SectionHeader(title: "2-Card Hands")
                         HandReferenceRow(
                             title: "Pair",
-                            description: "Two cards of same rank (e.g., 2♠ 2♥)",
+                            description: "Two cards with matching ranks (e.g., 5♠ 5♥)",
                             score: "15"
                         )
                         
@@ -675,27 +676,27 @@ struct HandReferenceView: View {
                         SectionHeader(title: "3-Card Hands")
                         HandReferenceRow(
                             title: "Mini Straight",
-                            description: "Three consecutive cards (e.g., 3♠ 4♥ 5♦)",
+                            description: "Three cards in sequence (e.g., 3♠ 4♥ 5♦)",
                             score: "25"
                         )
                         HandReferenceRow(
                             title: "Mini Flush",
-                            description: "Three cards of same suit (e.g., A♥ K♥ Q♥)",
+                            description: "Three cards with matching suits (e.g., 3♥ K♥ 9♥)",
                             score: "30"
                         )
                         HandReferenceRow(
                             title: "Mini Straight Flush",
-                            description: "Three consecutive cards of same suit (e.g., 8♣ 7♣ 6♣)",
+                            description: "Three cards in sequence with matching suits (e.g., A♣ 2♣ 3♣)",
                             score: "35"
                         )
                         HandReferenceRow(
                             title: "Mini Royal Flush",
-                            description: "J, Q, K of same suit (e.g., J♣ Q♣ K♣)",
+                            description: "J, Q, K with matching suits (e.g., J♦ Q♦ K♦)",
                             score: "40"
                         )
                         HandReferenceRow(
                             title: "Three of a Kind",
-                            description: "Three cards of same rank (e.g., 4♠ 4♥ 4♦)",
+                            description: "Three cards with matching ranks (e.g., 4♠ 4♥ 4♦)",
                             score: "45"
                         )
                         
@@ -707,32 +708,32 @@ struct HandReferenceView: View {
                         SectionHeader(title: "4-Card Hands")
                         HandReferenceRow(
                             title: "Two Pair",
-                            description: "Two different pairs (e.g., J♠ J♥ Q♣ Q♦)",
+                            description: "Two pairs, each with matching ranks (e.g., 6♠ 6♥ K♣ K♦)",
                             score: "50"
                         )
                         HandReferenceRow(
                             title: "Nearly Straight",
-                            description: "Four consecutive cards (e.g., 5♠ 4♥ 3♦ 2♣)",
+                            description: "Four cards in sequence (e.g., 6♠ 7♥ 8♦ 9♣)",
                             score: "55"
                         )
                         HandReferenceRow(
                             title: "Nearly Flush",
-                            description: "Four cards of same suit (e.g., A♠ K♠ Q♠ J♠)",
+                            description: "Four cards with matching suits (e.g., 5♠ A♠ 9♠ 3♠)",
                             score: "60"
                         )
                         HandReferenceRow(
                             title: "Nearly Straight Flush",
-                            description: "Four consecutive cards of same suit (e.g., 9♠ 8♠ 7♠ 6♠)",
+                            description: "Four cards in sequence with matching suits (e.g., K♠ A♠ 2♠ 3♠)",
                             score: "65"
                         )
                         HandReferenceRow(
                             title: "Nearly Royal Flush",
-                            description: "J, Q, K, A of same suit (e.g., J♥ Q♥ K♥ A♥)",
+                            description: "J, Q, K, A with matching suits (e.g., J♣ Q♣ K♣ A♣)",
                             score: "70"
                         )
                         HandReferenceRow(
                             title: "Four of a Kind",
-                            description: "Four cards of same rank (e.g., 7♠ 7♥ 7♦ 7♣)",
+                            description: "Four cards with matching ranks (e.g., 7♠ 7♥ 7♦ 7♣)",
                             score: "75"
                         )
                         
@@ -744,36 +745,36 @@ struct HandReferenceView: View {
                         SectionHeader(title: "5-Card Hands")
                         HandReferenceRow(
                             title: "Straight",
-                            description: "Five consecutive cards (e.g., 9♠ 8♥ 7♦ 6♣ 5♠)",
+                            description: "Five cards in sequence (e.g., 7♠ 8♥ 9♦ 10♣ J♠)",
                             score: "80"
                         )
                         HandReferenceRow(
                             title: "Flush",
-                            description: "Five cards of same suit (e.g., A♦ 8♦ 6♦ 4♦ 2♦)",
+                            description: "Five cards with matching suits (e.g., 4♦ 8♦ Q♦ 5♦ 2♦)",
                             score: "85"
                         )
                         HandReferenceRow(
                             title: "Full House",
-                            description: "Three of a kind plus a pair (e.g., 3♣ 3♦ 3♥ 2♠ 2♣)",
+                            description: "Three cards with matching ranks, and two other cards with matching ranks (e.g., 3♣ 3♦ 3♥ 2♠ 2♣)",
                             score: "90"
                         )
                         HandReferenceRow(
                             title: "Straight Flush",
-                            description: "Five consecutive cards of same suit (e.g., 9♠ 8♠ 7♠ 6♠ 5♠)",
+                            description: "Five cards in sequence with matching suits (e.g., 5♠ 6♠ 7♠ 8♠ 9♠)",
                             score: "95"
                         )
                         HandReferenceRow(
                             title: "Royal Flush",
-                            description: "A, K, Q, J, 10 of same suit (e.g., A♥ K♥ Q♥ J♥ 10♥)",
+                            description: "10, J , Q, K, A with matching suits (e.g., 10♥ J♥ Q♥ K♥ A♥)",
                             score: "100"
                         )
                     }
                     .padding()
-                    .padding(.bottom, 48) // Keep bottom padding for scroll space
+                    .padding(.bottom, 48)
                 }
             }
-            .padding(.top, 4) // Keep padding to match gamePlayContent's outer VStack
-            .overlay(alignment: .bottom) { // <<< Apply overlay to the OUTER VStack
+            .padding(.top, 4)
+            .overlay(alignment: .bottom) {
                 Rectangle()
                     .fill(.ultraThinMaterial)
                     .frame(height: 40)
@@ -788,10 +789,10 @@ struct HandReferenceView: View {
                             endPoint: .bottom
                         )
                     )
-                    .ignoresSafeArea(.container, edges: .bottom) // Ensure it goes to the very bottom
+                    .ignoresSafeArea(.container, edges: .bottom)
             }
         }
-        .padding(.top, 4) // <<< Add this padding to match gamePlayContent's outer VStack
+        .padding(.top, 4)
     }
 
     // New header view component
@@ -803,9 +804,9 @@ struct HandReferenceView: View {
                 dismissAction() // Call the dismiss action
             }
         }
-        .padding(.horizontal, 24) // Match gameHeader horizontal padding
-        .padding(.top, 68)        // <<< Update this padding value
-        .padding(.bottom, 10)     // Add space below header
+        .padding(.horizontal, 24)
+        .padding(.top, 68)
+        .padding(.bottom, 10)
     }
 }
 
@@ -821,6 +822,10 @@ struct SectionHeader: View {
             Rectangle()
                 .fill(Color(hex: "#d4d4d4").opacity(0.75))
                 .frame(height: 2)
+            
+            Text("Score".uppercased())
+                .font(.handReferenceSectionHeader)
+                .foregroundColor(.white.opacity(0.75))
         }
         .padding(.top, 10)
         .padding(.bottom, 5)
@@ -832,38 +837,119 @@ struct HandReferenceRow: View {
     let description: String
     let score: String
     
+    // Computed property to parse example cards
+    private var exampleCards: [Card] {
+        parseExampleCards(from: description)
+    }
+    
     var body: some View {
-        HStack(alignment: .center) {
-            VStack(alignment: .leading, spacing: 5) {
+        HStack(alignment: .top) { // Align items to the top
+            VStack(alignment: .leading, spacing: 0) {
                 Text(title)
                     .font(.handReferenceRowTitle)
                     .foregroundColor(.white)
                 
-                if let exampleRange = description.range(of: "(e.g.,") {
-                    let descriptionText = String(description[..<exampleRange.lowerBound]).trimmingCharacters(in: .whitespaces)
-                    let exampleText = String(description[exampleRange.lowerBound...]).trimmingCharacters(in: .whitespaces)
-                    
-                    Text(descriptionText)
-                        .font(.subheadline)
-                        .foregroundColor(.white.opacity(0.8))
-                    
-                    Text(exampleText)
-                        .font(.subheadline)
-                        .foregroundColor(.white.opacity(0.8))
-                } else {
-                    Text(description)
-                        .font(.subheadline)
-                        .foregroundColor(.white.opacity(0.8))
+                // Display description text
+                descriptionTextView
+                
+                // Display mini cards if available
+                if !exampleCards.isEmpty {
+                    miniCardPreview
+                        .padding(.top, 8) // Add some space above the cards
                 }
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
             
             Spacer()
             
             Text(score)
                 .font(.handReferenceRowScore)
                 .foregroundColor(.white)
+                .padding(.leading, 8) // Add padding to prevent overlap with text/cards
         }
     }
+    
+    // Subview for the description text handling
+    @ViewBuilder
+    private var descriptionTextView: some View {
+        if let exampleRange = description.range(of: "(e.g.,") {
+            let descriptionText = String(description[..<exampleRange.lowerBound]).trimmingCharacters(in: .whitespaces)
+            
+            Text(descriptionText)
+                .font(.handReferenceRowDescription)
+                .foregroundColor(.white.opacity(0.8))
+
+        } else {
+            Text(description)
+                .font(.handReferenceRowDescription)
+                .foregroundColor(.white.opacity(0.8))
+        }
+    }
+    
+    // Subview for the mini card preview
+    private var miniCardPreview: some View {
+        HStack(spacing: 4) { // Spacing between mini cards
+            ForEach(exampleCards) { card in
+                CardView(
+                    card: card,
+                    isSelected: false, // Mini cards are never selected
+                    isEligible: true,  // Mini cards look better when fully opaque
+                    isInteractive: false, // Mini cards are not interactive
+                    style: .mini, // Use the new mini style
+                    onTap: {} // No action needed
+                )
+            }
+        }
+    }
+    
+    // Helper function to parse cards from description string
+    private func parseExampleCards(from description: String) -> [Card] {
+        guard let exampleRangeStart = description.range(of: "(e.g.,")?.upperBound,
+              let exampleRangeEnd = description.lastIndex(of: ")") else {
+            return []
+        }
+        
+        let exampleSubstring = description[exampleRangeStart..<exampleRangeEnd]
+            .trimmingCharacters(in: .whitespaces)
+        
+        let cardStrings = exampleSubstring.split(separator: " ")
+        
+        var cards: [Card] = []
+        
+        for cardString in cardStrings {
+            var rankString = ""
+            var suitString = ""
+            
+            if cardString.hasPrefix("10") {
+                rankString = "10"
+                suitString = String(cardString.dropFirst(2))
+            } else if cardString.count >= 2 {
+                rankString = String(cardString.prefix(1))
+                suitString = String(cardString.suffix(1))
+            }
+            
+            guard let rank = rankMap[rankString],
+                  let suit = suitMap[suitString] else {
+                print("⚠️ Could not parse card: \(cardString)")
+                continue // Skip if parsing fails
+            }
+            
+            cards.append(Card(suit: suit, rank: rank))
+        }
+        
+        return cards
+    }
+    
+    // Mapping dictionaries for parsing
+    private let rankMap: [String: Rank] = [
+        "A": .ace, "2": .two, "3": .three, "4": .four, "5": .five,
+        "6": .six, "7": .seven, "8": .eight, "9": .nine, "10": .ten,
+        "J": .jack, "Q": .queen, "K": .king
+    ]
+    
+    private let suitMap: [String: Suit] = [
+        "♥": .hearts, "♦": .diamonds, "♣": .clubs, "♠": .spades
+    ]
 }
 
 struct PlayHandButtonContainer: View {

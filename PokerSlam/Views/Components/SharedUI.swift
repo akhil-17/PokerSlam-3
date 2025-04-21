@@ -203,7 +203,7 @@ extension Font {
     
     /// Custom font style for the hand title in HandReferenceRow
     static var handReferenceRowTitle: Font {
-        .custom("Kanit-SemiBold", size: 18)
+        .custom("Kanit-SemiBold", size: 20)
     }
     
     /// Custom font style for the description in HandReferenceRow
@@ -214,6 +214,18 @@ extension Font {
     /// Custom font style for the score in HandReferenceRow
     static var handReferenceRowScore: Font {
         .custom("Kanit-SemiBold", size: 24)
+    }
+
+    // MARK: - Card Fonts (Add new mini styles)
+
+    /// Font for standard card rank/suit
+    static var cardStandardText: Font {
+        .system(size: 28, weight: .semibold, design: .rounded) // Match CardView usage
+    }
+    
+    /// Font for mini card rank/suit (approx 70% of standard)
+    static var cardMiniText: Font {
+        .system(size: 20, weight: .semibold, design: .rounded) // 28 * 0.7 = 19.6 -> 20
     }
 }
 
