@@ -1150,3 +1150,106 @@ private func cyclePosition() {
 - **CardView Mini Style:** A new style in `CardView` reducing size and font size for preview purposes.
 - **Bottom Fade:** Uses a `Rectangle` masked with a `LinearGradient` to create a fade effect at the bottom of the scroll view.
 - **Dismissal:** Controlled via `dismissAction` closure passed from `GameView`. 
+
+### 5. Poker Hand Detection
+
+#### Detection Logic
+```swift
+struct PokerHandDetector {
+    static func detectHand(cards: [Card]) -> HandType?
+}
+```
+- Detects valid poker hands from selected cards
+- Supports 2-5 card hands
+- Prioritizes higher-ranking hands
+- Implements checks for standard and custom hands (pairs, straights, flushes, full house, four of a kind, straight flushes, royal flushes, mini/nearly variants)
+
+#### Royal Flush Fix
+- The `isRoyalFlush` check was updated to correctly identify the specific required ranks {Ace, King, Queen, Jack, Ten} in addition to being a Straight Flush. Previously, it incorrectly checked the rank of the last card after sorting.
+
+### 6. Animation System
+
+#### Mesh Gradient Background
+- Uses `MeshGradient` (iOS 18.0+) for animated background.
+- Provides fallback to `LinearGradient` for older iOS versions.
+- Smoothly animates between predefined gradient states.
+
+#### Card Movement
+- Uses `.offset` modifier and `.animation(.spring)` for smooth card positioning changes.
+
+#### Connection Lines
+- Animates line drawing from start to end point using `Path` and `withAnimation`.
+
+#### Glyph Text Animation
+- Component: `GlyphAnimatedText.swift`
+- Animates text display glyph-by-glyph.
+- Supports delays and completion callbacks.
+- Used for intro message, game over message, hand names, and scores.
+
+#### Continuous Wave Animation
+- Applied to `GlyphAnimatedText` for specific elements.
+- **Title Wave:** Controlled by `isTitleWaveAnimating` state in `GameView` for the main menu title. Uses a `Task` loop started/stopped based on `GameView` state.
+- **Hand Formation Text Wave:** Controlled by `isWaveAnimating` state within the `HandFormationText` subview. Uses a `Task` loop started after initial glyph animation completes (`glyphAnimationComplete`) and stopped when text changes or view disappears.
+
+#### Score Animation
+- Implemented in `GameView.swift`'s `scoreDisplay` and `handleScoreUpdate`.
+- **Tally Effect:** Uses a `Timer` (`scoreUpdateTimer`) to incrementally update `displayedScore` towards `targetScore` for a counting effect.
+- **Gradient Pulse:** The `Score` / `New high score` label and the score value briefly switch to a `MeshGradientBackground2` fill (masked) when the score updates, controlled by `isScoreAnimating` state.
+
+#### Button Animations
+- Uses `.transition(.opacity.combined(with: .move(edge: .bottom)))` for play button appearance.
+- Uses `SuccessAnimationModifier` for a scale/glow effect on successful hand plays or game reset.
+
+#### Falling Ranks Animation (Main Menu)
+- Component: `FallingRanksView.swift`
+- Uses `Canvas` for efficient rendering of many symbols.
+- Uses `TimelineView(.animation)` to drive smooth animation updates.
+- `FallingRank` struct stores state for each symbol.
+- `updateRankPositions` calculates new Y positions based on speed and approximate delta time.
+- `spawnNewRank` adds new ranks at the top, attempting basic collision avoidance.
+- Applies a `LinearGradient` mask for fade-out effect.
+
+### 7. Safe Area Layout
+
+- **GameView:** The main `VStack` within `gamePlayContent` now uses `.padding(.top)` and `.padding(.bottom)` instead of fixed padding values.
+- **Effect:** This automatically applies padding equal to the device's safe area insets, ensuring the `gameHeader` and the bottom button area are not obscured by notches or the home indicator, while allowing the background gradient to fill the entire screen edge-to-edge.
+- **Stability:** The core layout's vertical stability (relative positioning of header, grid, button area) is maintained as the adaptive padding adjusts the overall container's vertical space.
+
+### 8. Hand Reference Mini Card Previews
+
+- **Component:** `HandReferenceRow` within `HandReferenceView` (`GameView.swift`).
+- **Parsing:** Includes `parseExampleCards(from: String)` helper to extract card notations (e.g., "5♠ 5♥") from the description string.
+- **Rendering:** Uses a nested `HStack` to display `CardView` instances for each parsed example card.
+- **Styling:** Applies `CardView(style: .mini)` to render smaller, non-interactive card representations.
+
+## 🔧 Tooling & Dependencies
+
+- **Version Control**: Git
+- **Dependency Management**: Swift Package Manager (SPM)
+- **CI/CD**: GitHub Actions (basic setup)
+
+## 🧪 Testing Strategy
+
+- **Unit Tests**: XCTest framework for testing models and view models.
+- **UI Tests**: XCUITest framework for testing UI flows and interactions.
+- **Coverage**: Aim for high test coverage across critical components.
+
+## 💡 Performance Considerations
+
+- Use `LazyVStack`/`LazyHStack` for efficient grid rendering.
+- Optimize hand detection algorithms.
+- Leverage SwiftUI's optimized rendering.
+- Use `Canvas` for performant drawing of many elements (Falling Ranks).
+- Profile with Instruments for identifying bottlenecks.
+
+## 🔒 Security Considerations
+
+- Validate user inputs (if applicable).
+- Secure data storage (e.g., Keychain for sensitive data, though currently only UserDefaults is used for high scores).
+- Follow Apple's security best practices.
+
+## 📚 Documentation
+
+- Maintain comprehensive documentation in the `docs/` directory.
+- Keep README.md updated with project overview and setup instructions.
+- Document architecture, technical specifications, and coding standards. 
