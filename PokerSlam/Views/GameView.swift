@@ -141,8 +141,8 @@ struct GameView: View {
                 // Main Content Area
                 gameMainContent
             }
-            .padding(.top, 4)    // Reduce top padding by 16
-            .padding(.bottom, 36) // Increase bottom padding by 16
+            .padding(.top)
+            .padding(.bottom)
             .disabled(showingHandReference) // Disable game interaction when reference is shown
 
             // Overlay the HandReferenceView
