@@ -158,7 +158,17 @@ struct PokerHandDetector {
     
     private static func isRoyalFlush(cards: [Card]) -> Bool {
         guard cards.count == 5 else { return false }
-        return isStraightFlush(cards: cards) && cards.last?.rank == .ace
+
+        // Check if it's a straight flush first
+        // Note: isStraightFlush itself checks count is 5, isFlush, and isStraight.
+        // The input 'cards' to this function are already sorted by rank in detectHand.
+        guard isStraightFlush(cards: cards) else { return false }
+
+        // If it's a straight flush, check if the ranks are specifically 10, J, Q, K, A
+        let ranks = Set(cards.map { $0.rank })
+        let royalRanks: Set<Rank> = [.ten, .jack, .queen, .king, .ace]
+
+        return ranks == royalRanks
     }
     
     private static func isNearlyRoyalFlush(cards: [Card]) -> Bool {
