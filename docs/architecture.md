@@ -63,52 +63,37 @@ private struct FallingRank: Identifiable {
     let size: CGFloat
 }
 ```
-- Represents a single falling rank symbol in the main menu animation.
+- Represents a single falling rank symbol in the main menu animation (`FallingRanksView`).
 - Tracks symbol, color, position, speed, and size.
 - `Identifiable` for use in `ForEach`.
 
 ### Hand Type Model
 ```swift
-enum HandType: String {
-    case pair
-    case miniStraight
-    case miniFlush
-    case miniStraightFlush
-    case miniRoyalFlush
-    case threeOfAKind
-    case twoPair
-    case nearlyStraight
-    case nearlyFlush
-    case nearlyStraightFlush
-    case nearlyRoyalFlush
-    case fourOfAKind
-    case straight
-    case flush
-    case fullHouse
-    case straightFlush
-    case royalFlush
+enum HandType: Int, Comparable {
+    // 5-card hands (highest scoring)
+    case royalFlush = 100
+    case straightFlush = 95
+    case fullHouse = 90
+    case flush = 85
+    case straight = 80
     
-    var score: Int {
-        switch self {
-        case .pair: return 15
-        case .miniStraight: return 25
-        case .miniFlush: return 30
-        case .miniStraightFlush: return 35
-        case .miniRoyalFlush: return 40
-        case .threeOfAKind: return 45
-        case .twoPair: return 50
-        case .nearlyStraight: return 55
-        case .nearlyFlush: return 60
-        case .nearlyStraightFlush: return 65
-        case .nearlyRoyalFlush: return 70
-        case .fourOfAKind: return 75
-        case .straight: return 80
-        case .flush: return 85
-        case .fullHouse: return 90
-        case .straightFlush: return 95
-        case .royalFlush: return 100
-        }
-    }
+    // 4-card hands
+    case fourOfAKind = 75
+    case nearlyRoyalFlush = 70
+    case nearlyStraightFlush = 65
+    case nearlyFlush = 60
+    case nearlyStraight = 55
+    case twoPair = 50
+    
+    // 3-card hands
+    case threeOfAKind = 45
+    case miniRoyalFlush = 40
+    case miniStraightFlush = 35
+    case miniFlush = 30
+    case miniStraight = 25
+    
+    // 2-card hands (lowest scoring)
+    case pair = 15
     
     var displayName: String {
         switch self {
@@ -131,12 +116,17 @@ enum HandType: String {
         case .royalFlush: return "Royal Flush"
         }
     }
+    
+    static func < (lhs: HandType, rhs: HandType) -> Bool {
+        lhs.rawValue < rhs.rawValue
+    }
 }
 ```
-- Comprehensive hand type enumeration
-- Score calculation for each hand type
-- Display name for UI presentation
-- Prioritized hand detection order
+- Comprehensive hand type enumeration.
+- Uses `rawValue` (Int) for inherent score value.
+- Implements `Comparable` for easy sorting/comparison based on score.
+- `displayName` property for UI presentation.
+- Detection order handled by `PokerHandDetector`.
 
 ### Connection Model
 ```swift
@@ -207,19 +197,21 @@ struct MeshGradientState {
 
 ### Main Menu View
 - Simplified entry point to the game.
-- Displays the game title ("Poker Slam") using `GradientText` and `.appTitle` style.
+- Displays the game title ("Poker Slam") using `GradientText` and `GlyphAnimatedText` with a continuous wave animation (`isTitleWaveAnimating`).
+- Uses `FallingRanksView` as an animated background.
 - Displays a "tap to start" message using `IntroMessageTextStyle`.
 - Tapping anywhere triggers a full-screen transition to `GameView`.
 - Contains no navigation buttons for settings or instructions.
 
 ### Game View
-- Main game interface
-- View composition: Organizes content using `gameHeader` and `gameMainContent` computed properties.
-- State observation: Observes `GameViewModel` and `GameState`.
-- User interaction: Handles card selection taps, exit button (`CircularIconButton`), and help button (`CircularIconButton`) taps.
-- Layout management: Uses `VStack`, `HStack`, `ZStack`, `Spacer` for layout.
-- Header: Displays score (with animation), exit button, and help button to toggle `HandReferenceView` overlay.
-- Hand Reference Presentation: Manages the presentation of `HandReferenceView` as an overlay using `@State var showingHandReference`.
+- Main game interface.
+- **Structure:** Organizes content into `mainMenuContent` and `gamePlayContent` based on `@State private var currentViewState`.
+- **Game Play Layout:** Uses a `VStack` with adaptive safe area padding (`.padding(.top)`, `.padding(.bottom)`) to ensure `gameHeader` and the bottom button area respect device safe areas.
+- **State Management:** Observes `GameViewModel` (`@StateObject`) and `GameState` (`@EnvironmentObject`).
+- **User Interaction:** Handles card selection taps, exit button (`CircularIconButton`), and help button (`CircularIconButton`) taps.
+- **Header:** Displays score (with tally animation and gradient pulse via `scoreDisplay`), exit button, and help button to toggle `HandReferenceView` overlay.
+- **Hand Reference Presentation:** Manages the presentation of `HandReferenceView` as an overlay using `@State var showingHandReference`.
+- **Animations:** Manages the title wave animation loop (`startTitleWaveLoop`, `stopTitleWaveLoop`).
 
 ### Hand Reference View
 - **Presentation:** Rendered as an overlay within `GameView`, toggled by the help button in the `GameView` header.
@@ -229,11 +221,11 @@ struct MeshGradientState {
 - **Mini Card Previews:** `HandReferenceRow` includes a helper function (`parseExampleCards`) to extract card examples from description strings and renders them using `CardView` with a `.mini` style.
 
 ### Card Grid View
-- Card layout
-- Selection handling
-- Animation coordination
-- Empty space management
-- Grid maintenance
+- Card layout using `LazyVStack` and `LazyHStack`.
+- Handles tap gestures on cards (via `CardView`) and background (to deselect).
+- Uses `GeometryReader` within `.background` of `CardView` to track individual card frames (`cardFrames`) for connection line drawing.
+- Animates card position changes using `.offset` and `.animation(.spring)`.
+- Uses `coordinateSpace(name: "cardGrid")` to establish a reference for frame calculations.
 
 ### Connection Lines View
 - Line rendering
@@ -243,11 +235,9 @@ struct MeshGradientState {
 - Performance optimization
 
 ### Connection Lines Layer
-- Connection management
-- Frame tracking
-- Animation coordination
-- Visual effects
-- Performance optimization
+- **Rendering:** Uses the `cardFrames` dictionary passed from `CardGridView` to calculate start/end points for `ConnectionLineView`.
+- **Data Source:** Iterates over `viewModel.connections`.
+- **Animation Control:** Passes `isAnimated` flag to `ConnectionLineView`.
 
 ### Mesh Gradient Background
 - Background rendering
@@ -272,22 +262,35 @@ struct GradientText<Content: View>: View {
 - Applied to intro message, game over message, hand/score text.
 
 ### Falling Ranks View
-- Renders the falling suit symbols animation for the main menu background.
-- Uses `Canvas` and `TimelineView` for efficient rendering.
-- Manages its own state for rank positions and spawning.
-- Applies `FallingRankSymbolEffectModifier` for iOS 17+ pulsing effect.
+- **Purpose:** Provides an animated background of falling suit symbols for the main menu.
+- **Implementation:** Uses `Canvas` for efficient drawing and `TimelineView(.animation)` for smooth, continuous updates.
+- **Rendering:** Defines symbols using `Image(systemName:)` in the `symbols` builder of the `Canvas` and applies color/effects via modifiers.
+- **Animation Logic:**
+    - Spawns new `FallingRank` objects periodically (`spawnInterval`).
+    - Updates `yPosition` of each rank based on `speed` and `deltaTime` in `updateRankPositions`.
+    - Removes ranks that fall off-screen.
+    - Implements basic collision avoidance during spawning to prevent overlap at the top.
+- **Effects:** Applies a custom `FallingRankSymbolEffectModifier` (placeholder for potential effects like blur or rotation) and a `LinearGradient` mask for a fade-out effect at the bottom.
+
+### Hand Formation Text
+- **Purpose:** Subview within `GameView` responsible for displaying the currently formed hand name and score, or intro/game over messages.
+- **Display:** Uses `GradientText` and `GlyphAnimatedText` for rendering.
+- **Animation:**
+    - Performs initial glyph-by-glyph animation.
+    - Triggers a continuous wave animation (`isWaveAnimating`) after the initial glyph animation completes (controlled by `glyphAnimationComplete` state and `startWaveLoop`/`stopWaveLoop`).
+    - Applies scale/offset/opacity animation (`.animation(.easeOut)`) when `viewModel.isAnimatingHandText` changes.
+- **State:** Resets wave animation state (`glyphAnimationComplete`, `isWaveAnimating`) when the displayed `text` changes.
 
 ## View Model Layer Components
 
 ### Game ViewModel
 - Game state management
 - Card selection logic
+- Hand detection coordination (calls `PokerHandDetector`)
 - Score calculation
-- Hand detection
-- Animation coordination
-- Manages state for success (`isSuccessState`) and reset (`isResetting`) animations.
-- Manages error animation state (`isErrorState`, `errorAnimationTimestamp`).
-- Triggers appropriate haptic feedback for various actions (selection, success, error, reset).
+- Animation state management (`isAnimatingHandText`, `isErrorState`, etc.)
+- Game reset logic
+- Card grid updates (refilling, shifting)
 
 ### Connection ViewModel
 - Connection management
@@ -799,6 +802,112 @@ This architecture ensures:
 
 ### GradientText (New Component)
 
+- Reusable component for text with animated mesh gradient.
+- Uses lighter color palette and shadow effect.
+- Accepts a ViewBuilder for flexible content (e.g., GlyphAnimatedText).
+- Applied to intro message, game over message, hand/score text.
+
+## Model Layer Components
+
+### Poker Hand Detector
+- **Responsibility:** Encapsulates the logic for detecting valid poker hands from a given set of `Card` objects.
+- **Method:** `static func detectHand(cards: [Card]) -> HandType?` returns the highest-ranking valid hand.
+- **Checks:** Includes individual private static functions (`isPair`, `isStraight`, `isFlush`, `isRoyalFlush`, etc.) for each `HandType`.
+- **Order:** Detection logic prioritizes higher-scoring hands (e.g., checks Royal Flush before Straight Flush).
+- **Royal Flush Fix:** `isRoyalFlush` correctly checks for a Straight Flush containing the specific ranks {Ace, King, Queen, Jack, Ten}.
+
+## Service Layer Components
+
+### Card Model
+```swift
+struct Card: Identifiable, Equatable {
+    let id: UUID
+    let rank: Rank
+    let suit: Suit
+    var isSelected: Bool
+    var isEligible: Bool
+}
+```
+- Unique identification
+- Card properties
+- Selection state
+- Eligibility tracking
+
+### Connection Model
+```swift
+struct Connection: Identifiable, Equatable {
+    let id = UUID()
+    let fromCard: Card
+    let toCard: Card
+    let fromPosition: AnchorPoint.Position
+    let toPosition: AnchorPoint.Position
+}
+```
+- Connection identification
+- Source and destination cards
+- Anchor point positions
+- Equatable conformance
+
+### Anchor Point Model
+```swift
+struct AnchorPoint: Equatable {
+    enum Position: String, CaseIterable {
+        case topLeft, top, topRight
+        case left, right
+        case bottomLeft, bottom, bottomRight
+    }
+    
+    let position: Position
+    let point: CGPoint
+}
+```
+- Position enumeration
+- Point coordinates
+- Corner handling
+- Equatable conformance
+
+### Connection Graph Model
+```swift
+private struct ConnectionGraph {
+    var nodes: Set<ConnectionNode>
+    var edges: Set<ConnectionEdge>
+    
+    func findMinimumSpanningTree() -> Set<ConnectionEdge>
+}
+```
+- Graph representation
+- Node and edge management
+- Minimum spanning tree algorithm
+- Connection optimization
+
+### Mesh Gradient Model
+```swift
+struct MeshGradientState {
+    enum Position {
+        case first, second, third, fourth
+    }
+    
+    var currentPosition: Position
+    var points: [SIMD2<Float>]
+    var colors: [Color]
+    var backgroundColor: Color
+}
+```
+- Position tracking
+- Point coordinates
+- Color management
+- Animation state
+
+### GradientText (New Component)
+```swift
+struct GradientText<Content: View>: View {
+    let content: Content // Accepts any View
+    let font: Font
+    let tracking: CGFloat
+    let isAnimated: Bool
+    // ... init and body ...
+}
+```
 - Reusable component for text with animated mesh gradient.
 - Uses lighter color palette and shadow effect.
 - Accepts a ViewBuilder for flexible content (e.g., GlyphAnimatedText).

@@ -9,7 +9,7 @@ PokerSlam is an engaging puzzle game where players create poker hands by selecti
 ### Key Features
 - 5x5 grid of playing cards
 - Support for forming poker hands with adjacent cards
-- Real-time hand recognition and scoring
+- Real-time hand recognition and scoring (including correct Royal Flush detection)
 - Haptic feedback for interactions
 - High score tracking
 - Hand reference guide
@@ -25,13 +25,15 @@ PokerSlam is an engaging puzzle game where players create poker hands by selecti
 - Reusable gradient text component with lighter, animated mesh gradient styling and shadow effect
 - Glyph-by-glyph text animation for key text elements (intro, game over, hand/score)
 - Sequential glyph animation for hand name and score
-- Continuous wave animation effect for specific text/icon elements
+- Continuous wave animation effect for specific text/icon elements (title, hand formation text)
+- Animated score updates (tally and gradient pulse)
 - Replayable glyph animation when text content changes
 - Shared success animation for "Play hand" and "Play again" buttons
 - Distinct haptic feedback for game reset
 - Simplified main menu (tap anywhere to start)
 - Enhanced game header with score display, exit button, and help button for Hand Reference access.
 - Updated HandReferenceView: Presented as an overlay with a top-right close button, custom fonts, mini card previews for examples, and a bottom fade gradient.
+- Adaptive layout respecting device safe areas.
 
 ### Game Rules
 - Cards must be adjacent to be selected
@@ -128,7 +130,7 @@ PokerSlam/
 - Haptic feedback for interactions
 - Clear visual feedback for valid/invalid selections
 - In-game hand reference guide accessible via icon button
-- Responsive design for all iOS devices
+- Responsive design for all iOS devices, respecting safe area insets.
 - Animated connection lines between selected cards
 - Rounded corner-aware connection points
 - Animated mesh gradient background with position-based transitions
@@ -136,7 +138,7 @@ PokerSlam/
 - Optimized connection path finding for selected cards
 - Lighter mesh gradient styling with shadow for important text elements (intro, game over, hand/score)
 - Glyph-by-glyph text animation for buttons and key text elements
-- Continuous wave effect applied to animated glyphs
+- Continuous wave effect applied to animated glyphs (Title, Hand Formation Text)
 - Sequential character animation (hand name then score) with spring effects and blur transitions
 - Replayable glyph animation when text content changes
 - Enhanced button animations with combined opacity and slide effects
@@ -147,7 +149,7 @@ PokerSlam/
 - Smooth crossfade transition for HandReferenceView overlay
 - Specific haptic feedback for game reset action
 - Simplified main menu: Tap anywhere to start the game
-- **Updated Game Header:** Displays current score (animating updates and indicating new high scores), provides an exit button (`X`) to return to the main menu, and a help button (`?`) to access the Hand Reference view.
+- **Updated Game Header:** Displays current score (with animated tally updates and gradient pulse for new high scores), provides an exit button (`X`) to return to the main menu, and a help button (`?`) to access the Hand Reference view.
 - **Updated HandReferenceView:**
     - Presented as a modal overlay within the `GameView` using an `.ultraThinMaterial` background and a smooth opacity transition.
     - Features a dedicated header with a close button (`X`) using `CircularIconButton`.
