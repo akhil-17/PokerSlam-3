@@ -10,20 +10,10 @@ struct GameView: View {
     // MARK: - Properties
     @StateObject private var viewModel = GameViewModel()
     @EnvironmentObject private var gameState: GameState
-    @Environment(\.dismiss) private var dismiss // Keep dismiss for potential future use or app exit
     
     @State private var currentViewState: ViewState = .mainMenu
     @State private var showingHandReference = false
     
-    // Score animation properties (moved from GameContainer)
-    @State private var displayedScore: Int = 0
-    @State private var targetScore: Int = 0
-    @State private var scoreUpdateTimer: Timer?
-    @State private var isScoreAnimating: Bool = false
-    
-    // Intro message state (moved from GameContainer)
-    @State private var showIntroMessage = true
-
     // State for title wave animation
     @State private var isTitleWaveAnimating = false
     @State private var titleWaveLoopTask: Task<Void, Never>? = nil
@@ -49,8 +39,6 @@ struct GameView: View {
         .animation(.easeInOut(duration: 0.5), value: currentViewState) // Animate state changes
         .onChange(of: currentViewState) { oldValue, newValue in
             if newValue == .mainMenu {
-                 print("State changed TO MainMenu. Starting title wave after delay.")
-                 // Delay slightly to allow transition animation
                  DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
                       // Check if we are still in the main menu state after delay
                       if currentViewState == .mainMenu {
@@ -58,16 +46,13 @@ struct GameView: View {
                       }
                  }
             } else if oldValue == .mainMenu {
-                 print("State changed FROM MainMenu. Stopping title wave.")
                  stopTitleWaveLoop()
             }
         }
         .onAppear {
             // Initial setup if needed, though viewModel handles its own reset
-            setupScoreDisplay()
             // Start title wave animation if initial state is mainMenu
             if currentViewState == .mainMenu {
-                print("GameView appeared in MainMenu state. Starting title wave after delay.")
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
                      // Re-check state in case it changed very quickly
                      if currentViewState == .mainMenu {
@@ -75,9 +60,6 @@ struct GameView: View {
                      }
                 }
             }
-        }
-        .onChange(of: viewModel.score) { _, newScore in
-            handleScoreUpdate(newScore)
         }
     }
 
@@ -118,11 +100,6 @@ struct GameView: View {
             // Reset game state when starting
             Task { @MainActor in
                 viewModel.resetGame() // Removed isNewGame argument
-                // Reset score display immediately for the new game
-                displayedScore = 0
-                targetScore = 0
-                isScoreAnimating = false
-                showIntroMessage = true // Show intro message again
                 // Transition to game play
                 currentViewState = .gamePlay
             }
@@ -172,10 +149,6 @@ struct GameView: View {
                     }
                     // Reset game and return to main menu state
                     viewModel.resetGame() // Removed isNewGame argument
-                    // Reset score display when returning to menu
-                    displayedScore = 0
-                    targetScore = 0
-                    isScoreAnimating = false
                     currentViewState = .mainMenu
                 }
             }
@@ -221,8 +194,8 @@ struct GameView: View {
                             .font(.scoreLabel)
                             .foregroundColor(Color(hex: "#999999"))
                             .blendMode(.colorDodge)
-                            .opacity(isScoreAnimating ? 0 : 1)
-                        
+                            .opacity(viewModel.isScoreAnimating ? 0 : 1)
+
                         Text(viewModel.score > gameState.currentScore ? "New high score" : "Score")
                             .textCase(.uppercase)
                             .tracking(1)
@@ -235,26 +208,26 @@ struct GameView: View {
                                     .tracking(1)
                                     .font(.scoreLabel)
                             }
-                            .opacity(isScoreAnimating ? 1 : 0)
+                            .opacity(viewModel.isScoreAnimating ? 1 : 0)
                     }
                     
                     // Score Value (with gradient animation)
                     ZStack {
-                        Text("\(displayedScore)")
+                        Text("\(viewModel.displayedScore)")
                             .font(.scoreValue)
                             .foregroundColor(Color(hex: "#999999"))
                             .blendMode(.colorDodge)
-                            .opacity(isScoreAnimating ? 0 : 1)
-                        
-                        Text("\(displayedScore)")
+                            .opacity(viewModel.isScoreAnimating ? 0 : 1)
+
+                        Text("\(viewModel.displayedScore)")
                             .font(.scoreValue)
                             .foregroundStyle(.clear)
                             .background { MeshGradientBackground2() }
                             .mask {
-                                Text("\(displayedScore)")
+                                Text("\(viewModel.displayedScore)")
                                     .font(.scoreValue)
                             }
-                            .opacity(isScoreAnimating ? 1 : 0)
+                            .opacity(viewModel.isScoreAnimating ? 1 : 0)
                     }
                 }
             }
@@ -265,7 +238,7 @@ struct GameView: View {
     private var gameMainContent: some View {
         VStack(spacing: 0) {
             // Hand Formation Text Display
-            if showIntroMessage && viewModel.currentHandText == nil && !viewModel.isGameOver {
+            if !viewModel.hasUserInteractedThisGame && viewModel.currentHandText == nil && !viewModel.isGameOver {
                 HandFormationText(
                     text: "Connect 2–5 cards to make poker hands",
                     isAnimating: false,
@@ -282,11 +255,6 @@ struct GameView: View {
             // Card Grid Area
             ZStack {
                 CardGridView(viewModel: viewModel)
-                    .onChange(of: viewModel.selectedCards.count) { oldValue, newValue in
-                        if newValue > 0 {
-                            showIntroMessage = false
-                        }
-                    }
             }
             .frame(height: 550)
             
@@ -306,10 +274,6 @@ struct GameView: View {
                                 }
                                 viewModel.resetGame() // Removed isNewGame argument
                                 // Reset score display for the new game
-                                displayedScore = 0
-                                targetScore = 0
-                                isScoreAnimating = false
-                                showIntroMessage = true
                             }
                         }
                     )
@@ -329,70 +293,10 @@ struct GameView: View {
 
     // MARK: - Helper Methods
 
-    private func setupScoreDisplay() {
-        displayedScore = viewModel.score
-        targetScore = viewModel.score
-    }
-
-    private func handleScoreUpdate(_ newScore: Int) {
-        // Handle instant reset to 0 (e.g., when returning to menu or starting new game)
-        if newScore == 0 && displayedScore != 0 { // Prevent animation if already 0
-            scoreUpdateTimer?.invalidate()
-            scoreUpdateTimer = nil
-            isScoreAnimating = false
-            displayedScore = 0
-            targetScore = 0
-            return
-        }
-        
-        // Ensure target score is updated
-        targetScore = newScore
-
-        // Cancel existing timer if score changes during animation
-        scoreUpdateTimer?.invalidate()
-
-        let difference = newScore - displayedScore
-        guard difference != 0 else { return }
-
-        // Start gradient animation
-        withAnimation(.easeInOut(duration: 1.0)) {
-            isScoreAnimating = true
-        }
-
-        // Configure tally animation parameters
-        let steps = abs(difference)
-        let totalDuration = Double(steps) * 0.01
-        let clampedDuration = max(0.05, totalDuration)
-        let timeInterval = max(0.005, clampedDuration / Double(steps))
-        let increment = difference > 0 ? 1 : -1
-
-        // Start the timer
-        scoreUpdateTimer = Timer.scheduledTimer(withTimeInterval: timeInterval, repeats: true) { timer in
-            displayedScore += increment
-
-            // Stop condition
-            if (increment > 0 && displayedScore >= targetScore) || (increment < 0 && displayedScore <= targetScore) {
-                displayedScore = targetScore
-                timer.invalidate()
-                scoreUpdateTimer = nil
-                // Fade out gradient animation
-                withAnimation(.easeInOut(duration: 1.0)) {
-                    isScoreAnimating = false
-                }
-            }
-        }
-
-        // Ensure timer runs during UI interactions
-        if let timer = scoreUpdateTimer {
-            RunLoop.main.add(timer, forMode: .common)
-        }
-    }
-
     // MARK: - Title Wave Animation Loop Control
     
     private func startTitleWaveLoop() {
         guard titleWaveLoopTask == nil else { return }
-        print("GameView: Starting title wave loop task.")
         isTitleWaveAnimating = true
         
         titleWaveLoopTask = Task { @MainActor in
@@ -400,14 +304,11 @@ struct GameView: View {
                 do {
                     try await Task.sleep(for: .milliseconds(100))
                 } catch is CancellationError {
-                    print("GameView: Title wave loop task cancelled.")
                     break
                 } catch {
-                    print("GameView: Unexpected error in title wave loop: \(error). Stopping loop.")
                     break
                 }
             }
-            print("GameView: Exited title wave loop task.")
             isTitleWaveAnimating = false
             titleWaveLoopTask = nil
         }
@@ -415,7 +316,6 @@ struct GameView: View {
     
     private func stopTitleWaveLoop() {
         if let task = titleWaveLoopTask {
-            print("GameView: Cancelling title wave loop task.")
             task.cancel()
             titleWaveLoopTask = nil
         }
@@ -470,11 +370,8 @@ private struct HandFormationText: View {
                         ) {
                             let scoreDelay = Double(handName.count) * 0.03 + 0.1
                             GlyphAnimatedText(text: scoreText, animationDelay: scoreDelay, isWaveAnimating: isWaveAnimating) { 
-                                print("HandFormationText: Score glyph animation reported complete.")
                                 if self.text == text {
                                     glyphAnimationComplete = true
-                                } else {
-                                     print("HandFormationText: Text changed before score animation completed.")
                                 }
                             }
                         }
@@ -504,22 +401,18 @@ private struct HandFormationText: View {
         .frame(minHeight: 40, alignment: .top)
         .onChange(of: text) { _, newText in
             // Reset wave animation state whenever text changes
-            print("HandFormationText: Text changed to \"\(newText ?? "nil")\". Resetting wave state.")
             glyphAnimationComplete = false // Mark glyph animation as incomplete
             // StopWaveLoop is implicitly called by onChange(of: glyphAnimationComplete)
         }
         .onChange(of: glyphAnimationComplete) { _, newValue in
             // Start/stop wave loop when glyph animation completes/resets
             if newValue {
-                print("HandFormationText: Starting wave loop.")
                 startWaveLoop()
             } else {
-                 print("HandFormationText: Stopping wave loop.")
                 stopWaveLoop()
             }
         }
         .onDisappear {
-             print("HandFormationText Disappeared. Stopping wave loop.")
              // Ensure loop stops if view disappears
              stopWaveLoop()
         }
@@ -531,7 +424,6 @@ private struct HandFormationText: View {
         // Prevent multiple loops
         guard waveLoopTask == nil, glyphAnimationComplete else { return }
         
-        print("HandFormationText: Starting new continuous wave loop task.")
         isWaveAnimating = true 
         
         waveLoopTask = Task { @MainActor in
@@ -539,14 +431,11 @@ private struct HandFormationText: View {
                 do {
                     try await Task.sleep(for: .milliseconds(100))
                 } catch is CancellationError {
-                    print("HandFormationText: Continuous wave loop task cancelled.")
                     break
                 } catch {
-                    print("HandFormationText: Unexpected error in continuous wave loop: \(error). Stopping loop.")
                     break
                 }
             }
-            print("HandFormationText: Exited continuous wave loop task.")
             isWaveAnimating = false
             waveLoopTask = nil
         }
@@ -554,7 +443,6 @@ private struct HandFormationText: View {
     
     private func stopWaveLoop() {
         if let task = waveLoopTask {
-            print("HandFormationText: Cancelling wave loop task.")
             task.cancel()
             waveLoopTask = nil
         }
@@ -563,9 +451,6 @@ private struct HandFormationText: View {
         // Also ensure glyph animation is marked as incomplete if we stop the loop early
         // This prevents restart if text hasn't changed but disappear/reappear happens.
         if glyphAnimationComplete { 
-             // glyphAnimationComplete = false 
-             // ^ Careful: This might cause issues if text didn't actually change. 
-             // Let's rely on onChange(of: text) to reset it properly.
         }
     }
 }
@@ -592,7 +477,7 @@ private struct CardGridView: View {
                                 CardView(
                                     card: cardPosition.card,
                                     isSelected: viewModel.selectedCards.contains(cardPosition.card),
-                                    isEligible: viewModel.eligibleCards.contains(cardPosition.card),
+                                    isEligible: viewModel.eligibleCards.contains(cardPosition.card) && !viewModel.isGameOver,
                                     isInteractive: viewModel.areCardsInteractive,
                                     onTap: { 
                                         Task { @MainActor in
@@ -930,7 +815,6 @@ struct HandReferenceRow: View {
             
             guard let rank = rankMap[rankString],
                   let suit = suitMap[suitString] else {
-                print("⚠️ Could not parse card: \(cardString)")
                 continue // Skip if parsing fails
             }
             
@@ -955,13 +839,11 @@ struct HandReferenceRow: View {
 struct PlayHandButtonContainer: View {
     @ObservedObject var viewModel: GameViewModel
     @ObservedObject var gameState: GameState
-    @State private var showButton: Bool = false
-    @State private var isErrorAnimating: Bool = false
-    @State private var isSuccessAnimating: Bool = false
-    
+
     var body: some View {
         ZStack {
-            if showButton {
+            // Use derived condition for visibility
+            if viewModel.selectedCards.count >= 2 && !viewModel.isSuccessState {
                 PrimaryButton(
                     title: "Play hand",
                     icon: "play.fill",
@@ -971,7 +853,6 @@ struct PlayHandButtonContainer: View {
                     isSuccessState: viewModel.isSuccessState,
                     action: {
                         Task { @MainActor in
-                            print("🔘 Button tapped, playing hand")
                             viewModel.playHand()
                         }
                     }
@@ -981,50 +862,6 @@ struct PlayHandButtonContainer: View {
                 Color.clear
                     .frame(height: 76)
             }
-        }
-        .animation(.spring(response: 0.4, dampingFraction: 0.7), value: showButton)
-        .onChange(of: viewModel.selectedCards.count) { oldValue, newValue in
-            print("🔘 Selected cards count changed: \(oldValue) -> \(newValue), isSuccessState: \(viewModel.isSuccessState), isSuccessAnimating: \(isSuccessAnimating)")
-            if !isSuccessAnimating {
-                if newValue >= 2 {
-                    print("🔘 Showing button due to selection count: \(newValue)")
-                    showButton = true
-                } else {
-                    showButton = false
-                }
-            } else {
-                print("🔘 Ignoring selection count change during success animation")
-            }
-        }
-        .onChange(of: viewModel.isSuccessState) { oldValue, newValue in
-            print("🔘 Success state changed: \(oldValue) -> \(newValue)")
-            if newValue == true {
-                print("🔘 Hiding button due to success state")
-                showButton = false
-                isSuccessAnimating = true
-            } else if oldValue == true && newValue == false {
-                print("🔘 Success animation completed, waiting before checking selection count")
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                    print("🔘 Delay completed, checking selection count: \(viewModel.selectedCards.count)")
-                    isSuccessAnimating = false
-                    if viewModel.selectedCards.count >= 2 {
-                        print("🔘 Showing button after success animation")
-                        showButton = true
-                    }
-                }
-            }
-        }
-        .onChange(of: viewModel.errorAnimationTimestamp) { oldValue, newValue in
-            if newValue != nil && oldValue == nil {
-                isErrorAnimating = true
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
-                    isErrorAnimating = false
-                }
-            }
-        }
-        .onAppear {
-            print("🔘 PlayHandButtonContainer appeared, selection count: \(viewModel.selectedCards.count)")
-            showButton = viewModel.selectedCards.count >= 2
         }
     }
 }

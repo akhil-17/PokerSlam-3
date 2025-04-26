@@ -164,6 +164,14 @@ final class GameViewModel: ObservableObject {
     @Published private(set) var selectedCards: Set<Card> = []
     @Published private(set) var eligibleCards: Set<Card> = []
     @Published private(set) var score: Int = 0
+
+    // MARK: - Score Display Properties (Moved from GameView)
+    @Published private(set) var displayedScore: Int = 0
+    @Published private(set) var isScoreAnimating: Bool = false
+    private var targetScore: Int = 0 // Internal target for animation
+    private var scoreUpdateTimer: Timer?
+
+    // MARK: - Other Game State Properties
     @Published var isGameOver = false
     @Published private(set) var lastPlayedHand: HandType?
     @Published private(set) var isAnimating = false
@@ -174,6 +182,7 @@ final class GameViewModel: ObservableObject {
     @Published private(set) var errorAnimationTimestamp: Date?
     @Published private(set) var isSuccessState = false
     @Published private(set) var isResetting = false
+    @Published private(set) var hasUserInteractedThisGame: Bool = false
     
     // Track the order in which cards were selected
     private var selectionOrder: [Card] = []
@@ -196,6 +205,7 @@ final class GameViewModel: ObservableObject {
     init() {
         setupDeck()
         dealInitialCards()
+        resetScoreDisplay() // Initialize score display on init
     }
     
     private func setupDeck() {
@@ -286,6 +296,10 @@ final class GameViewModel: ObservableObject {
             updateCurrentHandText()
             updateConnections()
         } else if isCardEligibleForSelection(card) && selectedCards.count < 5 {
+            // Set interaction flag on first selection
+            if selectedCards.isEmpty {
+                hasUserInteractedThisGame = true
+            }
             selectedCards.insert(card)
             if let position = findCardPosition(card) {
                 selectedCardPositions.append(position)
@@ -674,7 +688,11 @@ final class GameViewModel: ObservableObject {
         // Detect the poker hand
         if let handType = PokerHandDetector.detectHand(cards: selectedCardsArray) {
             lastPlayedHand = handType
-            score += handType.rawValue
+            // Update the actual score first
+            let newScore = score + handType.rawValue
+            score = newScore
+            // Trigger the animation handler
+            handleScoreUpdate(newScore)
             successFeedback.notificationOccurred(.success)
             
             // Set success state before animations
@@ -991,12 +1009,14 @@ final class GameViewModel: ObservableObject {
         selectionOrder.removeAll()
         connections.removeAll()
         score = 0
+        resetScoreDisplay() // Reset score display state
         isGameOver = false
         lastPlayedHand = nil
         currentHandText = nil
         isErrorState = false
         errorAnimationTimestamp = nil
         isSuccessState = false
+        hasUserInteractedThisGame = false // Reset interaction flag
         setupDeck()
         dealInitialCards()
 
@@ -1045,5 +1065,80 @@ final class GameViewModel: ObservableObject {
         to: (row: Int, col: Int)
     ) -> Bool {
         return from.row == to.row || from.col == to.col
+    }
+
+    // MARK: - Score Animation Logic (Moved from GameView)
+
+    /// Resets the displayed score and animation state.
+    private func resetScoreDisplay() {
+        scoreUpdateTimer?.invalidate()
+        scoreUpdateTimer = nil
+        isScoreAnimating = false
+        displayedScore = score // Sync displayed score with actual score
+        targetScore = score
+    }
+
+    /// Handles updating the displayed score with animation.
+    /// Called internally when the actual `score` changes.
+    private func handleScoreUpdate(_ newScore: Int) {
+        // Handle instant reset to 0 (e.g., when score is set to 0 directly)
+        if newScore == 0 && displayedScore != 0 { // Prevent animation if already 0
+            scoreUpdateTimer?.invalidate()
+            scoreUpdateTimer = nil
+            isScoreAnimating = false
+            displayedScore = 0
+            targetScore = 0
+            return
+        }
+
+        // Ensure target score is updated
+        targetScore = newScore
+
+        // Cancel existing timer if score changes during animation
+        scoreUpdateTimer?.invalidate()
+
+        let difference = newScore - displayedScore
+        guard difference != 0 else { return }
+
+        // Start gradient animation
+        withAnimation(.easeInOut(duration: 1.0)) {
+            isScoreAnimating = true
+        }
+
+        // Configure tally animation parameters
+        let steps = abs(difference)
+        let totalDuration = Double(steps) * 0.01
+        let clampedDuration = max(0.05, totalDuration)
+        let timeInterval = max(0.005, clampedDuration / Double(steps))
+        let increment = difference > 0 ? 1 : -1
+
+        // Start the timer
+        scoreUpdateTimer = Timer.scheduledTimer(withTimeInterval: timeInterval, repeats: true) { [weak self] timer in
+            // Ensure execution on the Main Actor
+            Task { @MainActor in
+                guard let self = self else {
+                    timer.invalidate()
+                    return
+                }
+
+                self.displayedScore += increment
+
+                // Stop condition
+                if (increment > 0 && self.displayedScore >= self.targetScore) || (increment < 0 && self.displayedScore <= self.targetScore) {
+                    self.displayedScore = self.targetScore
+                    timer.invalidate()
+                    self.scoreUpdateTimer = nil
+                    // Fade out gradient animation
+                    withAnimation(.easeInOut(duration: 1.0)) {
+                        self.isScoreAnimating = false
+                    }
+                }
+            }
+        }
+
+        // Ensure timer runs during UI interactions
+        if let timer = scoreUpdateTimer {
+            RunLoop.main.add(timer, forMode: .common)
+        }
     }
 }
