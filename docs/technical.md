@@ -7,34 +7,41 @@
 - **Language**: Swift 5.5+
 - **IDE**: Xcode 13.0+
 - **UI Framework**: SwiftUI
-- **Architecture**: MVVM
-- **State Management**: SwiftUI's native state management system
+- **Architecture**: MVVM with Service Layer
+- **State Management**: SwiftUI's native state management (`@State`, `@StateObject`, `@Published`), `ObservableObject` protocol, Callbacks.
 
 ### Project Structure
 ```
 PokerSlam/
 ├── Views/                 # SwiftUI Views
-│   ├── GameView.swift     # Main game interface
-│   ├── Components/        # Reusable UI components
-│   │   ├── SharedUI.swift # Shared UI components including MeshGradientBackground, text/symbol effects
-│   │   ├── ConnectionLineView.swift # Connection line rendering
-│   │   └── ConnectionLinesLayer.swift # Connection lines management
-│   │   └── FallingRanksView.swift # Falling ranks background animation
-│   ├── MainMenuView.swift # Main menu interface (tap to start)
-│   ├── CardView.swift     # Individual card view
-│   └── HandReferenceView.swift # Poker hand reference overlay
+│   ├── GameView.swift     # Main game container view (handles transitions, overlays)
+│   ├── Components/        # Reusable UI components (Buttons, Gradients, Text Effects, etc.)
+│   │   ├── CardView.swift # Individual card view (includes regular and mini styles)
+│   │   ├── FallingRanksView.swift # Main menu background animation
+│   │   ├── HandReferenceView.swift # Hand reference overlay content
+│   │   └── ...              # Other components (e.g., PrimaryButton, CircularIconButton)
 │   └── ...
 ├── ViewModels/           # View Models
+│   └── GameViewModel.swift # Orchestrates Services, manages UI state for GameView
 ├── Models/               # Data Models
-│   ├── Card.swift        # Card model
-│   ├── Connection.swift  # Connection between cards
-│   ├── AnchorPoint.swift # Anchor point for connections
-│   └── HandType.swift    # Poker hand types
+│   ├── Card.swift        # Card model (Suit, Rank)
+│   ├── HandType.swift    # Poker hand types and scoring
+│   ├── CardPosition.swift # Tracks card row, column, and target positions
+│   ├── Connection.swift  # Represents a visual connection between cards
 │   └── ...
+├── Services/             # Core Logic and State Managers
+│   ├── GameStateManager.swift # Manages deck, card layout, scoring, game over logic
+│   ├── CardSelectionManager.swift # Handles card selection, eligibility, hand text state
+│   ├── ConnectionDrawingService.swift # Calculates connection line paths
+│   ├── ScoreAnimator.swift # Manages score display animation logic
+│   ├── HapticsManager.swift # Centralizes haptic feedback
+│   └── PokerHandDetector.swift # Contains logic for detecting all hand types
 ├── Extensions/          # Swift Extensions
-│   └── Color+Hex.swift  # Color extension for hex color support
-├── Resources/           # Assets and Resources
-└── Tests/               # Test Suites
+│   └── Color+Hex.swift  # Color utility
+├── Resources/           # Assets (Images, Fonts)
+├── PokerSlamApp.swift   # App Entry Point
+├── Tests/               # Unit and UI Tests
+└── docs/                # Project Documentation
 ```
 
 ## Feature Technical Specifications
@@ -1253,3 +1260,70 @@ struct PokerHandDetector {
 - Maintain comprehensive documentation in the `docs/` directory.
 - Keep README.md updated with project overview and setup instructions.
 - Document architecture, technical specifications, and coding standards. 
+
+### 1. Game View & State Management
+- **GameView (`GameView.swift`)**: Acts as the main container. Uses a `@State` variable (`currentViewState`) to switch between `.mainMenu` and `.gamePlay` content.
+- **GameViewModel (`GameViewModel.swift`)**: 
+    - Initialized using `@StateObject` in `GameView`.
+    - Instantiates and holds references to all necessary services (`GameStateManager`, `CardSelectionManager`, etc.).
+    - **Orchestration**: Coordinates actions between services via direct calls and callbacks.
+    - **State Exposure**: Uses `@Published` properties to expose required state (e.g., `cardPositions`, `selectedCards`, `displayedScore`, `isGameOver`) to `GameView`. It gets this state from the underlying services.
+    - **Bindings**: Sets up Combine bindings (`.assign(to:)`) to automatically update its `@Published` properties when the corresponding properties in the services change.
+    - **Callbacks**: Registers callback closures with services (e.g., `gameStateManager.onNewCardsDealt`) to react to events and trigger necessary updates in other services (e.g., calling `cardSelectionManager.updateEligibleCards()`).
+
+### 2. Game State Service (`GameStateManager.swift`)
+- **Responsibilities**: Manages the core game state: the deck, `cardPositions` array (including `currentRow`, `currentCol`, `targetRow`, `targetCol`), `score`, `isGameOver` flag, `lastPlayedHand`, and dealing logic.
+- **Card Lifecycle**: Handles `dealInitialCards`, `removeCardsAndShiftAndDeal`, `shiftCardsDown`, `dealNewCardsToFillGrid`.
+- **Game Over Check**: Contains `checkGameOver` and the crucial `canSelectCards` helper (using BFS/DFS for connectivity check) to determine if any valid, *selectable* hands remain.
+- **State Publishing**: Uses `@Published` for key state variables (`cardPositions`, `score`, `isGameOver`, `lastPlayedHand`) that `GameViewModel` binds to.
+- **Callbacks**: Provides `onNewCardsDealt` and `onGameOverChecked` for `GameViewModel`.
+
+### 3. Card Selection Service (`CardSelectionManager.swift`)
+- **Responsibilities**: Manages the user's card selection process: `selectedCards` set, `eligibleCards` set, `selectionOrder`, `currentHandText`, and UI feedback states (`isErrorState`, `isSuccessState`).
+- **Selection Logic**: Implements `selectCard`, `handleSelection`, `handleDeselection` (now calls `unselectAllCards`), `unselectAllCards`.
+- **Eligibility**: Calculates `eligibleCards` based on the current selection and adjacency rules using `GameStateManager.isAdjacent`.
+- **State Publishing**: Uses `@Published` for its state variables that `GameViewModel` binds to.
+- **Callback**: Provides `onSelectionChanged` for `GameViewModel` (used to trigger connection updates).
+
+### 4. Connection Drawing Service (`ConnectionDrawingService.swift`)
+- **Responsibilities**: Calculates the `connections` array (`[Connection]`) based on the current `selectedCards` from `CardSelectionManager` and their positions from `GameStateManager`.
+- **Pathfinding**: Implements logic (likely Minimum Spanning Tree or similar) to determine the optimal visual connections between selected cards.
+- **State Publishing**: Publishes the `connections` array for `GameViewModel` / `GameView`.
+
+### 5. Score Animation Service (`ScoreAnimator.swift`)
+- **Responsibilities**: Manages the visual animation of the score display.
+- **State**: Holds `displayedScore` (the value shown on screen) and `targetScore`.
+- **Animation Logic**: Implements the tally animation logic to update `displayedScore` incrementally towards `targetScore`.
+- **State Publishing**: Publishes `displayedScore` and `isScoreAnimating` for `GameViewModel` / `GameView`.
+
+### 6. Haptics Service (`HapticsManager.swift`)
+- **Responsibilities**: Centralizes all haptic feedback generation.
+- **Methods**: Provides specific methods like `playSelectionChanged`, `playDeselectionImpact`, `playSuccessNotification`, `playErrorNotification`, `playResetNotification`, etc.
+- **Usage**: Injected into and used by `GameViewModel` and `CardSelectionManager`.
+
+// ... Update other sections like Hand Recognition, Scoring, Animation System, UI Components (MainMenu, Header, HandReference) to reflect the refactoring and service responsibilities ...
+
+### UI Components
+
+#### Main Menu (`GameView.swift` - `.mainMenu` state)
+- Displays title and "tap to start".
+- Background: `FallingRanksView`.
+- Interaction: Tap gesture triggers `viewModel.resetGame()` and transitions `currentViewState` to `.gamePlay`.
+
+#### Game Header (`GameView.swift` - `gameHeader` property)
+- Contains `CircularIconButton` for exit (triggers `viewModel.resetGame()`, returns to `.mainMenu`).
+- Contains `scoreDisplay`.
+- Contains `CircularIconButton` for help (toggles `showingHandReference` state).
+
+#### Score Display (`GameView.swift` - `scoreDisplay` property)
+- Displays score label ("Score" or "New high score") and value (`viewModel.displayedScore`).
+- Score Label uses `.id()` and `.transition(.opacity)` for crossfade animation between "Score" and "New high score" based on `viewModel.score > gameState.currentScore`.
+- Score Value uses opacity animations based on `viewModel.isScoreAnimating` (driven by `ScoreAnimator`) to show/hide base text vs. gradient text for a pulse effect.
+
+#### Hand Reference View (`HandReferenceView.swift`, presented in `GameView.swift`)
+- Overlay presentation controlled by `showingHandReference` state in `GameView`.
+- Uses `.transition(.opacity)`.
+- Contains `HandReferenceRow` which uses `CardView(style: .mini)`.
+- Dismissed via action closure passed from `GameView`.
+
+// ... rest of technical.md ... 

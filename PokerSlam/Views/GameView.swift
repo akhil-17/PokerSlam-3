@@ -188,28 +188,32 @@ struct GameView: View {
                 VStack(spacing: -4) {
                     // Score Label (with gradient animation)
                     ZStack {
-                        Text(viewModel.score > gameState.currentScore ? "New high score" : "Score")
+                        // Determine the text content
+                        let scoreLabelText = viewModel.score > gameState.currentScore ? "New high score" : "Score"
+                        
+                        // Single Text view for the label
+                        Text(scoreLabelText)
                             .textCase(.uppercase)
                             .tracking(1)
                             .font(.scoreLabel)
-                            .foregroundColor(Color(hex: "#999999"))
-                            .blendMode(.colorDodge)
-                            .opacity(viewModel.isScoreAnimating ? 0 : 1)
-
-                        Text(viewModel.score > gameState.currentScore ? "New high score" : "Score")
-                            .textCase(.uppercase)
-                            .tracking(1)
-                            .font(.scoreLabel)
-                            .foregroundStyle(.clear)
-                            .background { MeshGradientBackground2() }
-                            .mask {
-                                Text(viewModel.score > gameState.currentScore ? "New high score" : "Score")
-                                    .textCase(.uppercase)
-                                    .tracking(1)
-                                    .font(.scoreLabel)
-                            }
-                            .opacity(viewModel.isScoreAnimating ? 1 : 0)
+                            .foregroundStyle(Color(hex: "#999999")) // Keep base color or make dynamic?
+                        
+                        // Optional: Apply gradient overlay if needed, simplified
+                        // Text(scoreLabelText)
+                        //     .textCase(.uppercase)
+                        //     .tracking(1)
+                        //     .font(.scoreLabel)
+                        //     .foregroundStyle(.clear)
+                        //     .background { MeshGradientBackground2() }
+                        //     .mask {
+                        //         Text(scoreLabelText)
+                        //             .textCase(.uppercase)
+                        //             .tracking(1)
+                        //             .font(.scoreLabel)
+                        //     }
                     }
+                    .id("scoreLabel_" + (viewModel.score > gameState.currentScore ? "high" : "normal")) // Use ID for transition
+                    .transition(.opacity.animation(.easeInOut(duration: 0.2))) // Apply crossfade transition
                     
                     // Score Value (with gradient animation)
                     ZStack {
@@ -500,8 +504,8 @@ private struct CardGridView: View {
                                     x: CGFloat(cardPosition.currentCol - cardPosition.targetCol) * 68,
                                     y: CGFloat(cardPosition.currentRow - cardPosition.targetRow) * 102
                                 )
-                                .animation(.spring(response: 0.3, dampingFraction: 0.7), value: cardPosition.targetRow)
-                                .animation(.spring(response: 0.3, dampingFraction: 0.7), value: cardPosition.targetCol)
+                                .animation(.spring(response: 0.3, dampingFraction: 0.7), value: cardPosition.currentRow)
+                                .animation(.spring(response: 0.3, dampingFraction: 0.7), value: cardPosition.currentCol)
                                 .transition(.opacity.combined(with: .scale))
                             } else {
                                 Color.clear

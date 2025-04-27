@@ -1,6 +1,6 @@
 # PokerSlam
 
-A modern iOS game that combines poker hand recognition with puzzle mechanics, built using SwiftUI and following MVVM architecture.
+A modern iOS game that combines poker hand recognition with puzzle mechanics, built using SwiftUI and following MVVM architecture enhanced with a Service layer.
 
 ## 🎮 Overview
 
@@ -50,11 +50,11 @@ PokerSlam is an engaging puzzle game where players create poker hands by selecti
 ## 🎮 Technology Stack
 
 - **Framework**: SwiftUI
-- **Architecture**: MVVM (Model-View-ViewModel)
+- **Architecture**: MVVM (Model-View-ViewModel) with a dedicated Service layer
 - **State Management**: 
-  - @Published properties
-  - @StateObject for view models
-  - @EnvironmentObject for global state
+  - SwiftUI's built-in tools (`@State`, `@StateObject`, `@Published`)
+  - `ObservableObject` protocol for ViewModels and Services
+  - Bindings for connecting UI and state
 - **Data Persistence**: UserDefaults for high scores
 - **Design Patterns**:
   - Protocol-oriented programming
@@ -72,41 +72,45 @@ PokerSlam is an engaging puzzle game where players create poker hands by selecti
 ```
 PokerSlam/
 ├── Views/                 # SwiftUI views
-│   ├── GameView.swift     # Main game interface
+│   ├── GameView.swift     # Main game container (handles transitions between Main Menu and Game Play)
 │   ├── CardView.swift     # Individual card view
-│   ├── MainMenuView.swift # Main menu interface (tap to start)
-│   ├── HandReferenceView.swift # Poker hand reference (accessed in-game)
-│   └── Components/        # Reusable UI components
-│       ├── SharedUI.swift # Shared UI components including MeshGradientBackground, text/symbol effects
-│       ├── ConnectionLineView.swift # Connection line rendering
-│       └── ConnectionLinesLayer.swift # Connection lines management
-│       └── FallingRanksView.swift # Falling ranks background animation for main menu
+│   ├── FallingRanksView.swift # Background animation for main menu
+│   ├── HandReferenceView.swift # Poker hand reference overlay
+│   └── Components/        # Reusable UI components (Buttons, Gradients, Text Effects, etc.)
 ├── ViewModels/           # View models
-│   └── GameViewModel.swift # Game logic and state management
-├── Models/               # Data models
-│   ├── Card.swift        # Card model
-│   ├── HandType.swift    # Poker hand types
-│   ├── Connection.swift  # Connection between cards
-│   └── AnchorPoint.swift # Anchor point for connections
+│   └── GameViewModel.swift # Orchestrates Services, exposes state for GameView
+├── Models/               # Data models (Card, HandType, CardPosition, etc.)
+├── Services/             # Core game logic and state managers
+│   ├── GameStateManager.swift # Manages deck, card positions, game state (game over), scoring
+│   ├── CardSelectionManager.swift # Handles card selection/deselection, eligibility, hand text
+│   ├── ConnectionDrawingService.swift # Calculates connection lines based on selection
+│   ├── ScoreAnimator.swift # Manages score display animation
+│   ├── HapticsManager.swift # Centralizes haptic feedback generation
+│   └── PokerHandDetector.swift # Detects poker hands
 ├── Extensions/          # Swift extensions
 │   └── Color+Hex.swift  # Color extension for hex color support
 ├── Resources/           # Assets and resources
 │   ├── Assets.xcassets/ # Image assets
 │   └── Fonts/          # Custom fonts
-└── PokerSlamApp.swift   # App entry point
+├── PokerSlamApp.swift   # App entry point
+├── Preview Content/     # Assets for SwiftUI Previews
+├── PokerSlam.xcodeproj # Xcode project file
+└── docs/                # Documentation files
 ```
 
 ## 🎯 Design Patterns & Architecture
 
-### MVVM Architecture
-- **Models**: Pure data structures (Card, HandType, Connection, AnchorPoint)
-- **Views**: SwiftUI views for UI components
-- **ViewModels**: GameViewModel handles game logic and state
+### MVVM Architecture with Service Layer
+- **Models**: Pure data structures representing game entities and state.
+- **Views**: SwiftUI views responsible for UI layout and presentation.
+- **ViewModels**: Orchestrates data flow between Views and Services. `GameViewModel` acts as the central coordinator for the main game screen, managing dependencies between services and exposing combined state to the `GameView`.
+- **Services**: Encapsulate specific domains of game logic (e.g., `GameStateManager`, `CardSelectionManager`, `HapticsManager`). They manage their own state and provide functionalities accessed by the ViewModel.
 
 ### State Management
-- **GameState**: Global state manager for scores and game settings
-- **GameViewModel**: Manages game-specific state and logic
-- **Published Properties**: For reactive UI updates
+- **ViewModel State**: `GameViewModel` uses `@Published` properties to expose necessary state derived from underlying services to `GameView`.
+- **Service State**: Services like `GameStateManager` and `CardSelectionManager` manage their internal state using `@Published` properties.
+- **Bindings**: SwiftUI bindings connect UI elements to the ViewModel's published state.
+- **Callbacks**: Services use callbacks (e.g., `onNewCardsDealt` in `GameStateManager`) to notify the `GameViewModel` of significant events, allowing the ViewModel to coordinate actions between services (e.g., updating eligibility in `CardSelectionManager` after cards are dealt).
 
 ### Design Principles
 - Protocol-oriented programming
@@ -125,6 +129,9 @@ PokerSlam/
 
 ## 🎨 UI/UX Features
 
+- Separate Main Menu view with falling ranks animation and tap-to-start interaction.
+- Game Header displaying score (with animation), exit button, and help button.
+- Hand Reference guide presented as an interactive overlay within the game view.
 - Dynamic card grid layout
 - Smooth animations for card movements
 - Haptic feedback for interactions
