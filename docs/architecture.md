@@ -2,37 +2,87 @@
 
 ## System Architecture Overview
 
-PokerSlam follows a modern MVVM (Model-View-ViewModel) architecture with SwiftUI, emphasizing clean separation of concerns, testability, and maintainability. The architecture is designed to support iOS 15.0+ with enhanced features for iOS 18.0+.
+PokerSlam follows a modern MVVM (Model-View-ViewModel) architecture enhanced with a dedicated **Service Layer**. This approach, built with SwiftUI, prioritizes clean separation of concerns, testability, and maintainability.
 
-### Core Architectural Components
+### Core Architectural Layers & Responsibilities
 
-1. **View Layer**
-   - SwiftUI views for UI representation
-   - Reusable components
-   - View composition
-   - State observation
-   - iOS version-specific features
+1.  **View Layer (SwiftUI)**
+    *   Renders the UI based on state provided by the ViewModel.
+    *   Handles user input and forwards actions to the ViewModel.
+    *   Contains reusable UI components (`CardView`, `PrimaryButton`, etc.).
+    *   Observes ViewModel's `@Published` properties for UI updates.
+    *   Example: `GameView`, `CardView`, `HandReferenceView`.
 
-2. **ViewModel Layer**
-   - Business logic
-   - State management
-   - Data transformation
-   - Event handling
-   - Game rules enforcement
+2.  **ViewModel Layer (SwiftUI/Combine)**
+    *   Acts as an orchestrator between the View and the Service Layer.
+    *   Holds references to necessary Services.
+    *   Exposes relevant state (combined from Services) to the View via `@Published` properties.
+    *   Translates user actions from the View into calls to appropriate Services.
+    *   Listens for callbacks or binds to `@Published` properties from Services to react to state changes and coordinate actions between Services.
+    *   Contains minimal business logic; delegates complex logic to Services.
+    *   Example: `GameViewModel`.
 
-3. **Model Layer**
-   - Data structures
-   - Game state
-   - Card logic
-   - Connection models
-   - Animation states
+3.  **Service Layer (Swift/Combine)**
+    *   Encapsulates specific domains of business logic and state management.
+    *   Services manage their own internal state, often using `@Published` properties.
+    *   Provide functionalities and data to the ViewModel.
+    *   Can communicate with each other indirectly via the ViewModel or through dependency injection if necessary (though currently communication is orchestrated by `GameViewModel`).
+    *   Examples: `GameStateManager`, `CardSelectionManager`, `ConnectionDrawingService`, `ScoreAnimator`, `HapticsManager`, `PokerHandDetector`.
 
-4. **Service Layer**
-   - Game mechanics
-   - Hand detection
-   - Score calculation
-   - Animation coordination
-   - Background effects
+4.  **Model Layer (Swift)**
+    *   Represents the data structures and domain entities.
+    *   Typically simple structs or enums (value types).
+    *   Examples: `Card`, `HandType`, `CardPosition`, `Connection`.
+
+### Data Flow & Communication
+
+```mermaid
+graph LR
+    V[View Layer (GameView)] -- User Actions --> VM(ViewModel Layer <br/> GameViewModel);
+    VM -- Calls Methods --> S((Service Layer));
+    S -- Publishes State / Callbacks --> VM;
+    VM -- Publishes State --> V;
+    S --> M(Model Layer);
+    VM --> M;
+
+    subgraph Service Layer
+        GSM[GameStateManager]
+        CSM[CardSelectionManager]
+        CDS[ConnectionDrawingService]
+        SA[ScoreAnimator]
+        HM[HapticsManager]
+        PHD[PokerHandDetector]
+    end
+
+    %% Interactions
+    VM -- Instantiate/Hold --> GSM;
+    VM -- Instantiate/Hold --> CSM;
+    VM -- Instantiate/Hold --> CDS;
+    VM -- Instantiate/Hold --> SA;
+    VM -- Instantiate/Hold --> HM;
+    
+    %% Example Flows
+    V -- Select Card --> VM -- Select Card --> CSM;
+    CSM -- Publishes selectedCards --> VM -- Publishes selectedCards --> V;
+    CSM -- onSelectionChanged --> VM -- Update Connections --> CDS;
+    CDS -- Publishes connections --> VM -- Publishes connections --> V;
+    
+    V -- Play Hand --> VM -- Play Hand Logic --> CSM;
+    VM -- Update Score --> GSM;
+    VM -- Animate Score --> SA;
+    VM -- Play Haptics --> HM;
+    VM -- Remove/Deal Cards --> GSM;
+    GSM -- onNewCardsDealt --> VM -- Update Eligibility --> CSM;
+    GSM -- onGameOverChecked --> VM;
+```
+
+1.  **User Interaction**: `GameView` captures user taps (e.g., selecting a card, playing a hand) and calls corresponding methods on `GameViewModel`.
+2.  **ViewModel Orchestration**: `GameViewModel` receives the action, determines which Service(s) need to be involved, and calls their methods (e.g., `cardSelectionManager.selectCard()`, `gameStateManager.removeCardsAndShiftAndDeal()`).
+3.  **Service Logic & State Update**: Services execute their logic (e.g., `CardSelectionManager` updates `selectedCards`, `GameStateManager` updates `cardPositions` and `score`).
+4.  **State Publishing (Service -> ViewModel)**: Services publish their state changes via `@Published` properties. `GameViewModel` subscribes to these using Combine's `.assign(to:)` to update its own `@Published` properties.
+5.  **Callbacks (Service -> ViewModel)**: Services use callbacks (e.g., `onNewCardsDealt`) to signal completion of asynchronous tasks or significant events. `GameViewModel` implements these callbacks to trigger subsequent actions in other services (e.g., updating eligibility after dealing cards).
+6.  **State Publishing (ViewModel -> View)**: `GameViewModel` publishes the combined/relevant state to `GameView`.
+7.  **UI Update**: `GameView` observes the ViewModel's `@Published` properties and automatically re-renders relevant parts of the UI.
 
 ## Data Models
 
@@ -192,6 +242,22 @@ struct MeshGradientState {
 - Point coordinates
 - Color management
 - Animation state
+
+### CardPosition Model
+```swift
+struct CardPosition: Identifiable, Equatable {
+    let id = UUID() // Unique ID for the position instance
+    let card: Card
+    var currentRow: Int // Current visual row (animated)
+    var currentCol: Int // Current visual col (animated)
+    var targetRow: Int  // Final row after shift/deal
+    var targetCol: Int  // Final col after shift/deal
+}
+```
+- Tracks a specific card's placement in the grid.
+- `id` is distinct from `card.id`.
+- `currentRow`/`currentCol` represent the current animated position.
+- `targetRow`/`targetCol` represent the destination position after animations complete (used for layout calculations).
 
 ## View Layer Components
 
@@ -818,85 +884,73 @@ This architecture ensures:
 
 ## Service Layer Components
 
-### Card Model
-```swift
-struct Card: Identifiable, Equatable {
-    let id: UUID
-    let rank: Rank
-    let suit: Suit
-    var isSelected: Bool
-    var isEligible: Bool
-}
-```
-- Unique identification
-- Card properties
-- Selection state
-- Eligibility tracking
+### GameStateManager
+- **Purpose**: Central manager for the core game state, including the deck, grid layout, scoring, and game over conditions.
+- **State Managed**: `deck`, `cardPositions: [CardPosition]`, `score: Int`, `isGameOver: Bool`, `lastPlayedHand: HandType?`.
+- **Key Functions**: `setupDeck`, `dealInitialCards`, `removeCardsAndShiftAndDeal` (initiates card removal, shifting, and dealing), `shiftCardsDown`, `dealNewCardsToFillGrid`, `checkGameOver`, `canSelectCards`.
+- **Communication**: Publishes state changes (`@Published`), provides callbacks (`onNewCardsDealt`, `onGameOverChecked`).
 
-### Connection Model
-```swift
-struct Connection: Identifiable, Equatable {
-    let id = UUID()
-    let fromCard: Card
-    let toCard: Card
-    let fromPosition: AnchorPoint.Position
-    let toPosition: AnchorPoint.Position
-}
-```
-- Connection identification
-- Source and destination cards
-- Anchor point positions
-- Equatable conformance
+### CardSelectionManager
+- **Purpose**: Manages the state related to user card selection and eligibility.
+- **State Managed**: `selectedCards: Set<Card>`, `eligibleCards: Set<Card>`, `selectionOrder: [Card]`, `currentHandText: String?`, `isErrorState: Bool`, `isSuccessState: Bool`.
+- **Key Functions**: `selectCard`, `unselectAllCards`, `updateEligibleCards`, `updateCurrentHandText`, state setters/resetters (`setErrorState`, `setSuccessState`, etc.).
+- **Communication**: Publishes state changes (`@Published`), provides callback (`onSelectionChanged`). Depends on `GameStateManager` for position data and adjacency checks.
 
-### Anchor Point Model
-```swift
-struct AnchorPoint: Equatable {
-    enum Position: String, CaseIterable {
-        case topLeft, top, topRight
-        case left, right
-        case bottomLeft, bottom, bottomRight
-    }
-    
-    let position: Position
-    let point: CGPoint
-}
-```
-- Position enumeration
-- Point coordinates
-- Corner handling
-- Equatable conformance
+### ConnectionDrawingService
+- **Purpose**: Calculates the visual connection paths between selected cards.
+- **State Managed**: `connections: [Connection]`.
+- **Key Functions**: `updateConnections`, `resetConnections`.
+- **Communication**: Publishes `connections` (`@Published`). Depends on `GameStateManager` and `CardSelectionManager` for input data.
 
-### Connection Graph Model
-```swift
-private struct ConnectionGraph {
-    var nodes: Set<ConnectionNode>
-    var edges: Set<ConnectionEdge>
-    
-    func findMinimumSpanningTree() -> Set<ConnectionEdge>
-}
-```
-- Graph representation
-- Node and edge management
-- Minimum spanning tree algorithm
-- Connection optimization
+### ScoreAnimator
+- **Purpose**: Handles the visual animation of the score updating.
+- **State Managed**: `displayedScore: Int`, `isScoreAnimating: Bool`, `targetScore: Int`.
+- **Key Functions**: `updateScore`, `resetScoreDisplay`.
+- **Communication**: Publishes `displayedScore` and `isScoreAnimating` (`@Published`).
 
-### Mesh Gradient Model
-```swift
-struct MeshGradientState {
-    enum Position {
-        case first, second, third, fourth
-    }
-    
-    var currentPosition: Position
-    var points: [SIMD2<Float>]
-    var colors: [Color]
-    var backgroundColor: Color
-}
-```
-- Position tracking
-- Point coordinates
-- Color management
-- Animation state
+### HapticsManager
+- **Purpose**: Provides a centralized way to trigger haptic feedback.
+- **State Managed**: None (manages feedback generators internally).
+- **Key Functions**: `playSelectionChanged`, `playDeselectionImpact`, `playSuccessNotification`, etc.
+- **Communication**: Provides methods to be called by ViewModel/other Services.
+
+### PokerHandDetector
+- **Purpose**: Contains stateless logic to detect poker hands.
+- **State Managed**: None.
+- **Key Functions**: `detectHand(cards: [Card]) -> HandType?`, private helper functions for each hand type (`isPair`, `isStraight`, etc.).
+- **Communication**: Provides static methods.
+
+## UI Components & Interactions
+
+### GameView
+- **Role**: Container view managing transitions between Main Menu and Game Play.
+- **State**: Uses `currentViewState`.
+- **Orchestration**: Initializes `GameViewModel`.
+- **Interaction**: Handles taps for state transitions (menu -> game, game -> menu).
+
+### Game Header
+- **Role**: Displays score and action buttons (exit, help).
+- **Data**: Binds to `viewModel.displayedScore`, `viewModel.score`, `gameState.currentScore`.
+- **Interaction**: Toggles `showingHandReference`, triggers `viewModel.resetGame()`.
+
+### Score Display
+- **Role**: Renders the score label and value.
+- **Animation**: Uses `.id()`/`.transition` for label crossfade, opacity changes based on `viewModel.isScoreAnimating` for value pulse.
+
+### CardGridView
+- **Role**: Displays the grid of `CardView`s.
+- **Data**: Iterates over `viewModel.cardPositions`.
+- **Layout**: Uses `LazyVStack`/`LazyHStack`.
+- **Animation**: Animates `CardView` offset based on `cardPosition.currentRow`/`currentCol` changes.
+- **Interaction**: Delegates card taps to `viewModel.selectCard`, background taps to `viewModel.unselectAllCards`.
+
+### ConnectionLinesLayer
+- **Role**: Draws lines between selected cards.
+- **Data**: Binds to `viewModel.connections` and uses `cardFrames` from `CardGridView`.
+
+### HandReferenceView
+- **Role**: Displays poker hand rules and examples.
+- **Presentation**: Shown as an overlay managed by `GameView`.
 
 ### GradientText (New Component)
 ```swift
