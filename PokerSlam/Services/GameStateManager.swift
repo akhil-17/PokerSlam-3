@@ -9,22 +9,28 @@ final class GameStateManager: ObservableObject {
     @Published private(set) var lastPlayedHand: HandType? // Can be set internally
     @Published private(set) var hasUserInteractedThisGame: Bool = false // Can be set internally
     
-    private var deck: [Card] = []
+    var deck: [Card] = []
     
     // Dependencies (will be injected later if needed, e.g., for calling eligibility checks after dealing)
     // var cardSelectionManager: CardSelectionManager? 
     var onNewCardsDealt: (() -> Void)?
     var onGameOverChecked: (() -> Void)?
     
-    // Haptics (optional, can be handled by GameViewModel orchestrator)
-    // var hapticsManager: HapticsManager? 
-    private let shiftFeedback = UIImpactFeedbackGenerator(style: .light) // Keep local for now, or inject HapticsManager
-    private let newCardFeedback = UIImpactFeedbackGenerator(style: .soft)
+    // Haptics (Injected)
+    private let hapticsManager: HapticsManaging
+    // private let shiftFeedback = UIImpactFeedbackGenerator(style: .light) // Removed
+    // private let newCardFeedback = UIImpactFeedbackGenerator(style: .soft) // Removed
     
-    init() {
-        // Prepare haptics if kept local
-        shiftFeedback.prepare()
-        newCardFeedback.prepare()
+    // Hand Detection (Injected via closure)
+    private let detectHand: ([Card]) -> HandType?
+    
+    // Initialize with dependencies
+    init(hapticsManager: HapticsManaging, detectHand: @escaping ([Card]) -> HandType? = PokerHandDetector.detectHand) {
+        self.hapticsManager = hapticsManager
+        self.detectHand = detectHand
+        // Prepare haptics if kept local // Removed
+        // shiftFeedback.prepare() // Removed
+        // newCardFeedback.prepare() // Removed
         // Initial setup
         setupDeck()
         // dealInitialCards() // Let GameViewModel call this after init
@@ -40,63 +46,65 @@ final class GameStateManager: ObservableObject {
             }
         }
         deck.shuffle()
-        print("🃏 Deck setup with \(deck.count) cards.")
+        // print("🃏 Deck setup with \(deck.count) cards.") // Removed
     }
     
     func dealInitialCards() {
-        var initialPositions: [CardPosition] = [] // Define outside guard
+        var initialPositions: [CardPosition] = [] // Define outside the if/else
 
-        guard deck.count >= 25 else {
-            // This block executes if deck.count < 25
-            print("Error: Not enough cards in deck to deal initial grid.") 
-
-            let cardsToDeal = deck.count // Line 62
-
-            /* // Line 64 (Start comment)
-            for i in 0..<cardsToDeal { 
+        // Use GridConstants.initialCardCount
+        // Replace guard with if/else
+        if deck.count >= GridConstants.initialCardCount {
+             // --- Standard path: Deal 25 cards --- 
+             // print("Deck has sufficient cards (\(deck.count)). Dealing \(GridConstants.initialCardCount).") // Removed
+             // Use GridConstants.rows and GridConstants.columns
+             for row in 0..<GridConstants.rows {
+                 for col in 0..<GridConstants.columns {
+                     if let card = deck.popLast() {
+                         initialPositions.append(CardPosition(card: card, row: row, col: col))
+                     }
+                 }
+             }
+        } else {
+            // --- Edge Case Path: Deal remaining (< 25) cards --- 
+            // print("⚠️ Warning: Deck only has \(deck.count) cards. Dealing available cards.") // Removed
+            let cardsToDeal = deck.count
+            for i in 0..<cardsToDeal {
                 if let card = deck.popLast() {
-                    let row = i / 5
-                    let col = i % 5
+                    // Use GridConstants.columns
+                    let row = i / GridConstants.columns
+                    let col = i % GridConstants.columns
                     initialPositions.append(CardPosition(card: card, row: row, col: col))
                 }
             }
-            */ // End comment
+            // No return needed, proceed to animation
+        }
 
-            deck.removeAll() 
-            isGameOver = true 
-            print("🔥 Warning: Dealt only \(cardsToDeal) cards initially. Game over.")
-            return // Must exit scope
-        }
-        
-        // --- This code runs ONLY if deck.count >= 25 ---
-        for row in 0..<5 {
-            for col in 0..<5 {
-                if let card = deck.popLast() {
-                    initialPositions.append(CardPosition(card: card, row: row, col: col))
-                }
-            }
-        }
-        
+        // --- Common logic: Animate dealing whatever is in initialPositions --- 
         cardPositions.removeAll()
-        print("Dealing initial cards...")
+        // print("Dealing initial cards...") // Removed
         
-        let baseDelay = 0.1
-        let staggerDelayIncrement = 0.01
+        // Use AnimationConstants
+        let baseDelay = AnimationConstants.initialDealBaseDelay
+        let staggerDelayIncrement = AnimationConstants.initialDealStagger
         
         for (_, position) in initialPositions.enumerated() {
             let row = position.targetRow
             let col = position.targetCol
-            let staggerDelay = Double(row * 5 + col) * staggerDelayIncrement
+            // Use GridConstants.columns
+            let staggerDelay = Double(row * GridConstants.columns + col) * staggerDelayIncrement
             let totalDelay = baseDelay + staggerDelay
             
             DispatchQueue.main.asyncAfter(deadline: .now() + totalDelay) {
-                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                // Use AnimationConstants for the spring
+                withAnimation(.spring(response: AnimationConstants.newCardDealSpringResponse, dampingFraction: AnimationConstants.newCardDealSpringDamping)) {
                     self.cardPositions.append(position)
                 }
-                self.newCardFeedback.impactOccurred() // Use local or injected haptics
+                // Use injected hapticsManager with correct method
+                self.hapticsManager.playNewCardImpact()
                 
                 if self.cardPositions.count == initialPositions.count {
-                    print("✅ Initial deal complete. Card count: \(self.cardPositions.count)")
+                    // print("✅ Initial deal complete. Card count: \(self.cardPositions.count)") // Removed
                     self.onNewCardsDealt?() // Notify GameViewModel to update eligibility etc.
                 }
             }
@@ -104,7 +112,7 @@ final class GameStateManager: ObservableObject {
     }
     
     func resetState() {
-        print("🔄 Resetting Game State Manager...")
+        // print("🔄 Resetting Game State Manager...") // Removed
         cardPositions.removeAll()
         score = 0
         isGameOver = false
@@ -132,39 +140,74 @@ final class GameStateManager: ObservableObject {
     
     /// Removes played cards, shifts remaining cards down, deals new cards, and checks game over.
     /// Calls completion handlers for updating eligibility and checking game over state.
-    func removeCardsAndShiftAndDeal(playedCards: [Card]) {
+    /// Uses async/await to sequence operations with delays matching animations.
+    func removeCardsAndShiftAndDeal(playedCards: [Card]) async {
         guard !playedCards.isEmpty else { return }
 
+        let playedCardIDs = Set(playedCards.map { $0.id })
         let emptyPositions = playedCards.compactMap { card in
             cardPositions.first { $0.card.id == card.id }
                 .map { ($0.currentRow, $0.currentCol) }
         }
         
-        print("🔍 Removing \(playedCards.count) cards. Positions: \(emptyPositions)")
+        // print("🔍 Animating removal of \(playedCards.count) cards. Positions: \(emptyPositions)") // Removed
 
-        cardPositions.removeAll { position in
-            playedCards.contains { $0.id == position.card.id }
+        // 1. Trigger removal animation by setting the flag
+        withAnimation(.spring(response: AnimationConstants.newCardDealSpringResponse, dampingFraction: AnimationConstants.newCardDealSpringDamping)) {
+            for index in cardPositions.indices {
+                if playedCardIDs.contains(cardPositions[index].card.id) {
+                    cardPositions[index].isBeingRemoved = true
+                }
+            }
+            // Optional: Play a different haptic for removal? Or rely on GameViewModel's success haptic.
+            // self.hapticsManager.play...() 
         }
-        
-        print("🔍 Remaining cards before shift: \(cardPositions.count)")
 
-        // --- Shift existing cards down --- 
+        // 2. WAIT for the removal animation to complete
+        do {
+            // Use the same animation duration used for the trigger
+            let removalDuration = UInt64(AnimationConstants.newCardDealSpringResponse * 1_000_000_000) 
+            try await Task.sleep(nanoseconds: removalDuration)
+        } catch { 
+            // Log non-fatally if needed, ignore cancellation errors
+            if !(error is CancellationError) {
+                 print("⏱️ Removal Task.sleep interrupted unexpectedly: \(error)") 
+            }
+        }
+
+        // 3. Actually remove the cards from the data source AFTER animation delay
+        cardPositions.removeAll { $0.isBeingRemoved }
+        // print("🔍 Remaining cards after removal, before shift: \(cardPositions.count)") // Removed
+
+        // 4. Shift existing cards down (triggers its own animation)
         shiftCardsDown(basedOn: emptyPositions)
         
-        // --- Deal new cards after shift animation --- 
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { // Use constant for animation duration?
-            self.dealNewCardsToFillGrid()
+        // 5. Wait for shift animation to visually complete
+        do {
+             let shiftDuration = UInt64(AnimationConstants.cardShiftDuration * 1_000_000_000)
+             try await Task.sleep(nanoseconds: shiftDuration)
+        } catch {
+            // print("⏱️ Shift Task.sleep interrupted: \(error)") // Removed (or log non-fatally if needed)
         }
+        
+        // 6. Deal new cards (triggers its own animation)
+        dealNewCardsToFillGrid() 
+        
+        // Callbacks are now handled within dealNewCardsToFillGrid
     }
     
+    // shiftCardsDown remains synchronous, animation handled by SwiftUI
     private func shiftCardsDown(basedOn previousEmptyPositions: [(Int, Int)]) {
-        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-            self.shiftFeedback.impactOccurred() // Use local or injected haptics
+        // Use AnimationConstants for the spring
+        withAnimation(.spring(response: AnimationConstants.cardShiftSpringResponse, dampingFraction: AnimationConstants.cardShiftSpringDamping)) {
+            // Use injected hapticsManager with correct method
+            self.hapticsManager.playShiftImpact()
             
             var cardsToUpdate = self.cardPositions // Work on a copy to calculate targets
             var needsUpdate = false
             
-            for col in 0..<5 {
+            // Use GridConstants.columns
+            for col in 0..<GridConstants.columns {
                 // Use the copy for filtering/sorting/calculation
                 let columnCards = cardsToUpdate
                     .filter { $0.currentCol == col }
@@ -180,16 +223,17 @@ final class GameStateManager: ObservableObject {
                     continue
                 }
                 
-                print("🔄 Shifting column \(col). Cards: \(columnCards.map {$0.currentRow}), Empties: \(columnEmptyPositions)")
+                // print("🔄 Shifting column \(col). Cards: \(columnCards.map {$0.currentRow}), Empties: \(columnEmptyPositions)") // Removed
 
-                var currentTargetRow = 4 // Start checking from the bottom row
+                // Use GridConstants.rows
+                var currentTargetRow = GridConstants.rows - 1 // Start checking from the bottom row (index 4)
                 for card in columnCards.reversed() { // Iterate bottom-up
                     let originalRow = card.currentRow
                     // Find the index in the *copy* being updated
                     if let cardIndex = cardsToUpdate.firstIndex(where: { $0.id == card.id }) {
                         // Check if the target row needs to be updated in the copy
                         if cardsToUpdate[cardIndex].targetRow != currentTargetRow {
-                            print("  ➡️ Calculating shift for card \(card.card.rank)\(card.card.suit) from \(originalRow) to target \(currentTargetRow) in col \(col)")
+                            // print("  ➡️ Calculating shift for card \(card.card.rank)\(card.card.suit) from \(originalRow) to target \(currentTargetRow) in col \(col)") // Removed
                             // Update the targetRow in the copy
                             cardsToUpdate[cardIndex].targetRow = currentTargetRow
                             needsUpdate = true
@@ -209,17 +253,19 @@ final class GameStateManager: ObservableObject {
                      return mutablePos
                  }
             } else {
-                 print("🔄 No card shifts required.")
+                 // print("🔄 No card shifts required.") // Removed
             }
-            print("🔍 Card count after shift: \(self.cardPositions.count)")
+            // print("🔍 Card count after shift: \(self.cardPositions.count)") // Removed
         }
     }
     
+    // dealNewCardsToFillGrid remains synchronous, animation handled by SwiftUI
+    // It now calls the completion handlers/checks internally
     private func dealNewCardsToFillGrid() {
         let currentPositions = Set(cardPositions.map { GridPosition(row: $0.currentRow, col: $0.currentCol) })
         
-        for col in 0..<5 {
-             for row in (0..<5).reversed() { // Check bottom-up
+        for col in 0..<GridConstants.columns {
+             for row in (0..<GridConstants.rows).reversed() { // Check bottom-up
                  if !currentPositions.contains(GridPosition(row: row, col: col)) {
                     // Find the first empty slot from the bottom in this column
                     // But new cards should fill from the TOP. Let's rethink. 
@@ -233,8 +279,9 @@ final class GameStateManager: ObservableObject {
          // Let's recalculate empty positions *after* shifting based on target rows.
          let finalOccupiedPositions = Set(cardPositions.map { GridPosition(row: $0.targetRow, col: $0.targetCol) })
          var finalEmptyPositions: [(Int, Int)] = []
-         for col in 0..<5 {
-             for row in 0..<5 { // Check top-down for filling
+         // Use GridConstants.columns and GridConstants.rows
+         for col in 0..<GridConstants.columns {
+             for row in 0..<GridConstants.rows { // Check top-down for filling
                  if !finalOccupiedPositions.contains(GridPosition(row: row, col: col)) {
                      finalEmptyPositions.append((row, col))
                  }
@@ -246,90 +293,100 @@ final class GameStateManager: ObservableObject {
          
         // --- End original logic adaptation ---
 
-        print("🃏 Dealing new cards. Deck: \(deck.count). Empty slots: \(finalEmptyPositions.count)")
+        // print("🃏 Dealing new cards. Deck: \(deck.count). Empty slots: \(finalEmptyPositions.count)") // Removed
         
         if finalEmptyPositions.isEmpty {
-             print("✅ Grid already full. No new cards needed.")
+             // print("✅ Grid already full. No new cards needed.") // Removed
              // Still need to check game over after shifting completes
-             checkGameOver()
-             onGameOverChecked?()
-             onNewCardsDealt?() // Update eligibility even if no cards dealt
+             checkGameOver()        // Moved here
+             onGameOverChecked?()   // Moved here
+             onNewCardsDealt?()     // Moved here (Update eligibility even if no cards dealt)
              return
         }
 
-        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-            self.newCardFeedback.impactOccurred() // Use local or injected haptics
+        // Use AnimationConstants for the spring
+        withAnimation(.spring(response: AnimationConstants.newCardDealSpringResponse, dampingFraction: AnimationConstants.newCardDealSpringDamping)) {
+            // Use injected hapticsManager with correct method
+            self.hapticsManager.playNewCardImpact()
             
             var cardsAdded = 0
             for position in finalEmptyPositions {
                 if let card = self.deck.popLast() {
-                    print("  ➡️ Adding new card \(card.rank)\(card.suit) at row \(position.0), col \(position.1)")
+                    // print("  ➡️ Adding new card \(card.rank)\(card.suit) at row \(position.0), col \(position.1)") // Removed
                     // Initialize new cards at their final position
                     self.cardPositions.append(CardPosition(card: card, row: position.0, col: position.1))
                     cardsAdded += 1
                 } else {
-                    print("🔥 Deck empty! Cannot fill remaining slots.")
+                    // print("🔥 Deck empty! Cannot fill remaining slots.") // Removed
                     break
                 }
             }
-            print("✅ Added \(cardsAdded) new cards. Final count: \(self.cardPositions.count)")
+            // print("✅ Added \(cardsAdded) new cards. Final count: \(self.cardPositions.count)") // Removed
         }
         
         // Update eligible cards and check game over AFTER new cards are added
-        onNewCardsDealt?()
-        checkGameOver()
-        onGameOverChecked?()
+        onNewCardsDealt?()     // Remains here
+        checkGameOver()        // Remains here
+        onGameOverChecked?()   // Remains here
     }
 
 
     func checkGameOver() {
         // Preserving original logic exactly as requested
         let allCards = cardPositions.map { $0.card }
-        print("🔍 Checking for game over. Cards: \(allCards.count), Deck: \(deck.count)")
+        // print("🔍 Checking for game over. Cards: \(allCards.count), Deck: \(deck.count)") // Removed
         
-        if deck.isEmpty && cardPositions.count < 25 {
-            print("🔍 Deck empty, checking remaining hands...")
-            for size in 2...5 {
+        // Use GridConstants.initialCardCount
+        if deck.isEmpty && cardPositions.count < GridConstants.initialCardCount {
+            // print("🔍 Deck empty, checking remaining hands...") // Removed
+            // Use GridConstants.minHandSize and GridConstants.maxHandSize
+            for size in GridConstants.minHandSize...GridConstants.maxHandSize {
                 let combinations = allCards.combinations(ofCount: size)
                 for cards in combinations {
-                    if canSelectCards(cards), PokerHandDetector.detectHand(cards: cards) != nil {
-                        print("  ✅ Valid hand found among remaining cards. Game NOT over.")
+                    // Check if selectable AND is a valid hand (Use self.detectHand)
+                    if canSelectCards(cards), self.detectHand(cards) != nil {
+                        // print("  ✅ Valid hand found among remaining cards. Game NOT over.") // Removed
                         self.isGameOver = false
-                        return
+                        onGameOverChecked?() // Notify immediately
+                        return // *** Exit the function early ***
                     }
                 }
             }
-            print("  ❌ No valid hands found among remaining cards. GAME OVER.")
+            // print("  ❌ No valid hands found among remaining cards. GAME OVER.") // Removed
             self.isGameOver = true
-            return
+            onGameOverChecked?() // Notify here as well
+            return // Added return for consistency
         }
         
         // Normal check with cards on board
-        print("🔍 Checking all possible hands on board...")
-        for size in 2...5 {
+        // print("🔍 Checking all possible hands on board...") // Removed
+        // Use GridConstants.minHandSize and GridConstants.maxHandSize
+        for size in GridConstants.minHandSize...GridConstants.maxHandSize {
             let combinations = allCards.combinations(ofCount: size)
              if combinations.isEmpty { continue } // Skip if no combinations of this size
-             // print("DEBUG: Checking combinations of size \(size) (\(combinations.count) found)")
             for cards in combinations {
-                // Check if selectable AND is a valid hand
-                if canSelectCards(cards), PokerHandDetector.detectHand(cards: cards) != nil {
-                    print("  ✅ Valid hand possible on board. Game NOT over.")
+                // Check if selectable AND is a valid hand (Use self.detectHand)
+                if canSelectCards(cards), self.detectHand(cards) != nil {
+                    // print("  ✅ Valid hand possible on board. Game NOT over.") // Removed
                     self.isGameOver = false
-                    return
+                    onGameOverChecked?() // Notify immediately
+                    return // *** Exit the function early ***
                 }
             }
         }
         
         // Only declare game over if NO selectable valid hands were found
-        print("❌ No selectable valid hands found on board. GAME OVER.")
+        // print("❌ No selectable valid hands found on board. GAME OVER.") // Removed
         self.isGameOver = true
+        onGameOverChecked?() // Notify here as well
     }
     
     /// Helper for checkGameOver: Determines if a given set of cards *could* be selected based on adjacency.
     /// This replicates the check within the original checkGameOver logic.
-    private func canSelectCards(_ cards: [Card]) -> Bool {
+    func canSelectCards(_ cards: [Card]) -> Bool {
         guard !cards.isEmpty else { return false }
-        guard cards.count <= 5 else { return false } // Max selection size
+        // Use GridConstants.maxHandSize
+        guard cards.count <= GridConstants.maxHandSize else { return false } // Max selection size
         if cards.count == 1 { return true } // Single card is always selectable
 
         // Need positions for adjacency checks
@@ -379,13 +436,17 @@ final class GameStateManager: ObservableObject {
     
     /// Gets all cards in the grid as a 2D array (for compatibility if needed)
     var cards: [[Card?]] {
-        var grid = Array(repeating: Array(repeating: Card?.none, count: 5), count: 5)
+        // Use GridConstants.rows and GridConstants.columns
+        var grid = Array(repeating: Array(repeating: Card?.none, count: GridConstants.columns), count: GridConstants.rows)
         for position in cardPositions {
              // Ensure indices are valid before assignment
-             if position.currentRow >= 0 && position.currentRow < 5 && position.currentCol >= 0 && position.currentCol < 5 {
+             // Use GridConstants.rows and GridConstants.columns
+             if position.currentRow >= 0 && position.currentRow < GridConstants.rows && position.currentCol >= 0 && position.currentCol < GridConstants.columns {
                 grid[position.currentRow][position.currentCol] = position.card
              } else {
-                 print("🔥 Error: Card position out of bounds: row \(position.currentRow), col \(position.currentCol)")
+                 // print("🔥 Error: Card position out of bounds: row \(position.currentRow), col \(position.currentCol)") // Removed
+                 // Consider adding assertionFailure or logging here for Release builds
+                 assertionFailure("Card position out of bounds: row \(position.currentRow), col \(position.currentCol)")
              }
         }
         return grid

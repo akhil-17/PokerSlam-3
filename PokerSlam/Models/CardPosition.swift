@@ -8,6 +8,7 @@ struct CardPosition: Identifiable {
     var currentCol: Int
     var targetRow: Int
     var targetCol: Int
+    var isBeingRemoved: Bool = false // Added for removal animation tracking
     
     init(card: Card, row: Int, col: Int) {
         self.card = card

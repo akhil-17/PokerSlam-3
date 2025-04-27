@@ -47,49 +47,64 @@ struct CardView: View {
         self.onTap = onTap
     }
 
-    // MARK: - Computed Style Properties
+    // MARK: - Computed Style Properties (Replaced with Constants)
     
+    // Properties now directly use constants from CardUIConstants based on style and isSelected state
     private var cardSize: CGSize {
-        switch style {
-        case .standard: return CGSize(width: 64, height: 94)
-        case .mini: return CGSize(width: 45, height: 66) // Approx 70%
-        }
+        style == .standard ? CardUIConstants.standardSize : CardUIConstants.miniSize
     }
     
     private var cornerRadius: CGFloat {
-        switch style {
-        case .standard: return 8
-        case .mini: return 6 // Slightly smaller
-        }
+        style == .standard ? CardUIConstants.standardCornerRadius : CardUIConstants.miniCornerRadius
     }
     
     private var textFont: Font {
-        switch style {
-        case .standard: return .cardStandardText
-        case .mini: return .cardMiniText
-        }
+        // Explicitly use Font. prefix to resolve ambiguity
+        style == .standard ? Font.cardStandardText : Font.cardMiniText
     }
     
     private var shadowRadius: CGFloat {
-        isSelected ? (style == .standard ? 8 : 5) : (style == .standard ? 2 : 1)
+        isSelected ? 
+            (style == .standard ? CardUIConstants.standardSelectedShadowRadius : CardUIConstants.miniSelectedShadowRadius) :
+            (style == .standard ? CardUIConstants.standardUnselectedShadowRadius : CardUIConstants.miniUnselectedShadowRadius)
     }
     
     private var shadowY: CGFloat {
-        isSelected ? (style == .standard ? 4 : 2) : (style == .standard ? 1 : 0.5)
+        isSelected ?
+            (style == .standard ? CardUIConstants.standardSelectedShadowY : CardUIConstants.miniSelectedShadowY) :
+            (style == .standard ? CardUIConstants.standardUnselectedShadowY : CardUIConstants.miniUnselectedShadowY)
     }
     
     private var strokeWidth: CGFloat {
-        isSelected ? (style == .standard ? 1.5 : 1.0) : (style == .standard ? 1 : 0.5)
+        isSelected ?
+            (style == .standard ? CardUIConstants.standardSelectedStrokeWidth : CardUIConstants.miniSelectedStrokeWidth) :
+            (style == .standard ? CardUIConstants.standardUnselectedStrokeWidth : CardUIConstants.miniUnselectedStrokeWidth)
     }
     
     private var scaleEffect: CGFloat {
-        isSelected ? 1.15 : 1.0
+        isSelected ? CardUIConstants.selectedScaleEffect : CardUIConstants.unselectedScaleEffect
+    }
+    
+    private var shadowColor: Color {
+        isSelected ? CardUIConstants.selectedShadowColor : CardUIConstants.unselectedShadowColor
+    }
+    
+    private var strokeColor: Color {
+        isSelected ? CardUIConstants.selectedStrokeColor : CardUIConstants.unselectedStrokeColor
+    }
+    
+    private var opacity: Double {
+        // Mini cards are always fully opaque (as per original logic)
+        isEligible || isSelected || style == .mini ? CardUIConstants.eligibleOpacity : CardUIConstants.ineligibleOpacity
+    }
+    
+    private var textPulseAnimation: Animation {
+        isSelected ? AnimationConstants.cardPulseAnimation : AnimationConstants.cardDefaultAnimation
     }
     
     var body: some View {
         Button(action: {
             if isInteractive {
-                // Simplified logic: allow tap if interactive
                 onTap()
             }
         }) {
@@ -98,7 +113,7 @@ struct CardView: View {
                     .fill(Material.thick)
                     .preferredColorScheme(.dark)
                     .shadow(
-                        color: isSelected ? Color(hex: "#FFD302").opacity(0.3) : Color(hex: "#191919").opacity(0.2),
+                        color: shadowColor, // Use constant
                         radius: shadowRadius,
                         x: 0,
                         y: shadowY
@@ -106,41 +121,37 @@ struct CardView: View {
                     .overlay(
                         RoundedRectangle(cornerRadius: cornerRadius)
                             .stroke(
-                                isSelected ? Color(hex: "#FFD302") : Color.clear,
+                                strokeColor, // Use constant
                                 lineWidth: strokeWidth
                             )
                     )
                 
                 VStack(spacing: 0) {
                     Text(card.rank.display)
-                        .font(textFont) // Use dynamic font
+                        .font(textFont)
                         .foregroundColor(Color(hex: card.suit.color))
-                        .scaleEffect(scaleEffect) // Apply scale effect
-                        .animation(
-                            isSelected ?
-                                .easeInOut(duration: 0.8).repeatForever(autoreverses: true) :
-                                .default,
-                            value: isSelected
-                        )
+                        .scaleEffect(scaleEffect)
+                        .animation(textPulseAnimation, value: isSelected) // Use constant animation
                     
                     Text(card.suit.rawValue)
-                        .font(textFont) // Use dynamic font
+                        .font(textFont)
                         .foregroundColor(Color(hex: card.suit.color))
-                        .scaleEffect(scaleEffect) // Apply scale effect
-                        .animation(
-                            isSelected ?
-                                .easeInOut(duration: 0.8).repeatForever(autoreverses: true) :
-                                .default,
-                            value: isSelected
-                        )
+                        .scaleEffect(scaleEffect)
+                        .animation(textPulseAnimation, value: isSelected) // Use constant animation
                 }
             }
-            .opacity(isEligible || isSelected ? 1.0 : (style == .mini ? 1.0 : 0.5)) // Mini cards are always fully opaque
-            .frame(width: cardSize.width, height: cardSize.height) // Use dynamic size
+            .opacity(opacity) // Use constant
+            .frame(width: cardSize.width, height: cardSize.height)
             .contentShape(Rectangle())
+            // Apply accessibility modifiers here
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("\(card.rank.display) of \(card.suit.rawValue)")
+            .accessibilityAddTraits(isSelected ? .isSelected : [])
+            .accessibilityAddTraits(isInteractive ? .isButton : [])
         }
         .buttonStyle(PlainButtonStyle())
-        .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isSelected)
+        // Use AnimationConstants.cardSelectionSpring
+        .animation(AnimationConstants.cardSelectionSpring, value: isSelected)
     }
 }
 

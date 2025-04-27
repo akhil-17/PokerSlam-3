@@ -18,12 +18,12 @@ final class CardSelectionManager: ObservableObject {
 
     // MARK: - Dependencies
     private let gameStateManager: GameStateManager
-    private let hapticsManager: HapticsManager
+    private let hapticsManager: HapticsManaging
     
     // Callback to notify GameViewModel to update connections
     var onSelectionChanged: (() -> Void)?
 
-    init(gameStateManager: GameStateManager, hapticsManager: HapticsManager) {
+    init(gameStateManager: GameStateManager, hapticsManager: HapticsManaging) {
         self.gameStateManager = gameStateManager
         self.hapticsManager = hapticsManager
     }
@@ -217,22 +217,15 @@ final class CardSelectionManager: ObservableObject {
         self.errorAnimationTimestamp = nil
     }
     
-    // MARK: - Reset
-
-    func resetSelection() {
-        print("🔄 Resetting Card Selection Manager...")
+    // MARK: - Resetting State
+    func reset() {
+        // print("🔄 Resetting Card Selection Manager...") // Removed
         selectedCards.removeAll()
         eligibleCards.removeAll()
-        selectionOrder.removeAll()
-        selectedCardPositions.removeAll()
-        currentHandText = nil
-        isAnimatingHandText = false
-        isErrorState = false
-        errorAnimationTimestamp = nil
         isSuccessState = false
-        // Update eligible cards (will get all cards)
-        updateEligibleCards()
-        onSelectionChanged?() // Ensure connections are cleared
+        isErrorState = false
+        // Call onSelectionChanged to notify observers (like ConnectionDrawingService)
+        onSelectionChanged?() // Removed argument, closure takes Void
     }
     
     // MARK: - Helpers

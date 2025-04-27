@@ -504,8 +504,11 @@ private struct CardGridView: View {
                                     x: CGFloat(cardPosition.currentCol - cardPosition.targetCol) * 68,
                                     y: CGFloat(cardPosition.currentRow - cardPosition.targetRow) * 102
                                 )
-                                .animation(.spring(response: 0.3, dampingFraction: 0.7), value: cardPosition.currentRow)
-                                .animation(.spring(response: 0.3, dampingFraction: 0.7), value: cardPosition.currentCol)
+                                .scaleEffect(cardPosition.isBeingRemoved ? 0.1 : 1.0)
+                                .opacity(cardPosition.isBeingRemoved ? 0 : 1)
+                                .animation(.spring(response: AnimationConstants.cardShiftSpringResponse, dampingFraction: AnimationConstants.cardShiftSpringDamping), value: cardPosition.currentRow)
+                                .animation(.spring(response: AnimationConstants.cardShiftSpringResponse, dampingFraction: AnimationConstants.cardShiftSpringDamping), value: cardPosition.currentCol)
+                                .animation(.spring(response: AnimationConstants.newCardDealSpringResponse, dampingFraction: AnimationConstants.newCardDealSpringDamping), value: cardPosition.isBeingRemoved)
                                 .transition(.opacity.combined(with: .scale))
                             } else {
                                 Color.clear

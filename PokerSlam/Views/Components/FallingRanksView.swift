@@ -44,7 +44,8 @@ struct FallingRanksView: View {
                                          at: drawPoint,
                                          anchor: .center)
                         } else {
-                            print("⚠️ Failed to resolve symbol for rank ID: \(rank.id)")
+                            // Handle error: Invalid rank ID mapping
+                            // print("⚠️ Failed to resolve symbol for rank ID: \(rank.id)") // Removed
                         }
                     }
                 } symbols: {
@@ -130,7 +131,7 @@ struct FallingRanksView: View {
         // Remove ranks efficiently
         if !ranksToRemove.isEmpty {
             ranks.removeAll { ranksToRemove.contains($0.id) }
-             print("FallingRanksView: Removed \(ranksToRemove.count) ranks.")
+             // print("FallingRanksView: Removed \(ranksToRemove.count) ranks.") // Removed
         }
     }
 
@@ -170,7 +171,7 @@ struct FallingRanksView: View {
         
         // Only spawn if a safe position was found
         guard positionIsSafe else {
-            print("FallingRanksView: Could not find safe spawn position, skipping spawn.")
+            // print("FallingRanksView: Could not find safe spawn position, skipping spawn.") // Removed
             return
         }
 
@@ -184,7 +185,7 @@ struct FallingRanksView: View {
         )
         
         ranks.append(newRank)
-         print("FallingRanksView: Spawned new rank (\(randomSuit.symbol)) at X: \(Int(xPosition)), count: \(ranks.count)")
+        // print("FallingRanksView: Spawned new rank (\(randomSuit.symbol)) at X: \(Int(xPosition)), count: \(ranks.count)") // Removed
     }
 }
 

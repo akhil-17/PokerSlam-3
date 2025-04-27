@@ -216,17 +216,11 @@ extension Font {
         .custom("Kanit-SemiBold", size: 24)
     }
 
-    // MARK: - Card Fonts (Add new mini styles)
+    // MARK: - Card Fonts (These are now defined in Core/Constants.swift)
 
-    /// Font for standard card rank/suit
-    static var cardStandardText: Font {
-        .system(size: 28, weight: .semibold, design: .rounded) // Match CardView usage
-    }
-    
-    /// Font for mini card rank/suit (approx 70% of standard)
-    static var cardMiniText: Font {
-        .system(size: 20, weight: .semibold, design: .rounded) // 28 * 0.7 = 19.6 -> 20
-    }
+    // Removed duplicate definitions:
+    // static var cardStandardText: Font { ... }
+    // static var cardMiniText: Font { ... }
 }
 
 // MARK: - View Extensions
@@ -767,11 +761,9 @@ struct PrimaryButton: View {
             }
         }
         .onAppear {
-            print("PrimaryButton \"\(title)\" Appeared")
             // Delay setting initial appearance complete to allow entrance animation
             // Existing animation takes roughly 0.4s + 0.05s delay
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.75) { // Increased delay to 0.75s
-                print("PrimaryButton \"\(title)\": Initial appearance complete")
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.75) {
                 initialAppearanceComplete = true
             }
 
@@ -785,17 +777,12 @@ struct PrimaryButton: View {
         .onChange(of: initialAppearanceComplete) { _, newValue in
             // Start wave loop when initial appearance is complete
             if newValue {
-                print("PrimaryButton \"\(title)\": Initial appearance complete. Starting wave loop.")
                 startWaveLoop()
             } else {
-                print("PrimaryButton \"\(title)\": Appearance no longer complete (e.g., disappear). Stopping wave loop.")
                 stopWaveLoop()
             }
         }
         .onDisappear {
-             print("PrimaryButton \"\(title)\" Disappeared. Stopping wave loop.")
-             // Ensure loop stops if button disappears
-             initialAppearanceComplete = false // This triggers onChange to stop the loop
              stopWaveLoop()
         }
     }
@@ -805,10 +792,6 @@ struct PrimaryButton: View {
     private func startWaveLoop() {
         guard waveLoopTask == nil, initialAppearanceComplete else { return }
         
-        print("PrimaryButton \"\(title)\": Starting new continuous wave loop task.")
-        // Set wave animating immediately
-        isWaveAnimating = true 
-        
         waveLoopTask = Task { @MainActor in
             // Loop keeps running as long as the button is visible and not cancelled
             while initialAppearanceComplete && !Task.isCancelled {
@@ -816,17 +799,14 @@ struct PrimaryButton: View {
                     // Sleep for a short duration to prevent a tight loop and allow cancellation checks
                     try await Task.sleep(for: .milliseconds(100))
                 } catch is CancellationError {
-                    print("PrimaryButton \"\(title)\": Continuous wave loop task cancelled.")
                     break // Exit loop if cancelled
                 } catch {
-                    print("PrimaryButton \"\(title)\": Unexpected error in continuous wave loop: \(error). Stopping loop.")
                     break // Exit on other errors
                 }
             }
             // Ensure wave animation stops when the loop finishes or is cancelled
-            print("PrimaryButton \"\(title)\": Exited continuous wave loop task.")
             if Task.isCancelled {
-                 print("PrimaryButton \"\(title)\": Task was cancelled.")
+                
             }
             isWaveAnimating = false
             waveLoopTask = nil // Clear the task reference
@@ -835,11 +815,8 @@ struct PrimaryButton: View {
     
     private func stopWaveLoop() {
         if let task = waveLoopTask {
-            print("PrimaryButton \"\(title)\": Cancelling wave loop task.")
             task.cancel()
             waveLoopTask = nil
-        } else {
-            print("PrimaryButton \"\(title)\": No wave loop task to stop.")
         }
         // Explicitly set animating to false, in case cancellation is delayed
         isWaveAnimating = false
@@ -952,25 +929,18 @@ struct GlyphAnimatedText: View {
         }
         .id(text) // Use text as ID to trigger reset on change
         .onAppear {
-            print("GlyphAnimatedText appeared for \"\(text)\". isWaveAnimating: \(isWaveAnimating)")
             animateGlyphs()
         }
         .onChange(of: text) {
-            print("GlyphAnimatedText text changed to \"\(text)\". Resetting.")
-            resetAndAnimateGlyphs()
+            animateGlyphs()
         }
-        .onChange(of: isWaveAnimating) { _, newValue in
-             print("GlyphAnimatedText isWaveAnimating changed to \(newValue) for \"\(text)\"")
-             // If wave starts, ensure glyphs are visible (might be redundant if logic works)
+        .onChange(of: isWaveAnimating) { newValue in
              if newValue && visibleGlyphs < text.count {
-                 // visibleGlyphs = text.count // Instantly show?
-                 // Or maybe let WaveEffectModifier handle visibility via isAnimating condition
              }
         }
     }
 
     private func animateGlyphs() {
-        print("GlyphAnimatedText: Starting appear animation for \"\(text)\"")
         visibleGlyphs = 0 // Ensure reset before starting
         DispatchQueue.main.asyncAfter(deadline: .now() + animationDelay) {
             let charCount = text.count
@@ -984,18 +954,15 @@ struct GlyphAnimatedText: View {
                 DispatchQueue.main.asyncAfter(deadline: .now() + glyphDelay) {
                     // Check if text changed during animation setup
                     guard self.text == text else { 
-                         print("GlyphAnimatedText: Text changed during appear animation. Aborting for index \(i).")
-                         return 
+                        return 
                     }
                     if self.visibleGlyphs == i { // Animate only if it's the next glyph
                         withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
                             visibleGlyphs = i + 1
-                             print("GlyphAnimatedText: Showing glyph \(i+1)/\(charCount) for \"\(text)\"")
                         }
                     } else {
                          // This can happen if resetAndAnimateGlyphs was called
-                         print("GlyphAnimatedText: Skipping glyph \(i) animation, visibleGlyphs is \(visibleGlyphs).")
-                    }
+                     }
                 }
                 
                 // Schedule completion handler after the last glyph animation starts + its duration
@@ -1005,7 +972,6 @@ struct GlyphAnimatedText: View {
                     DispatchQueue.main.asyncAfter(deadline: .now() + completionDelay) {
                         // Check if text is still the same before calling completion
                         if self.text == text {
-                            print("GlyphAnimatedText: \"\(text)\" animation complete. Calling handler.")
                             onGlyphAnimationComplete?()
                         }
                     }
@@ -1015,9 +981,7 @@ struct GlyphAnimatedText: View {
     }
 
     private func resetAndAnimateGlyphs() {
-        print("GlyphAnimatedText: Resetting and animating for \"\(text)\"")
         visibleGlyphs = 0 // Reset visibility immediately
-        // Debounce or cancel previous animations if necessary? No, ID change handles this.
         animateGlyphs() // Start animation for new text
     }
 }

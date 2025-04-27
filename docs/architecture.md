@@ -15,7 +15,7 @@ PokerSlam follows a modern MVVM (Model-View-ViewModel) architecture enhanced wit
 
 2.  **ViewModel Layer (SwiftUI/Combine)**
     *   Acts as an orchestrator between the View and the Service Layer.
-    *   Holds references to necessary Services.
+    *   Holds references to necessary Services (often via protocols like `HapticsManaging`).
     *   Exposes relevant state (combined from Services) to the View via `@Published` properties.
     *   Translates user actions from the View into calls to appropriate Services.
     *   Listens for callbacks or binds to `@Published` properties from Services to react to state changes and coordinate actions between Services.
@@ -26,8 +26,9 @@ PokerSlam follows a modern MVVM (Model-View-ViewModel) architecture enhanced wit
     *   Encapsulates specific domains of business logic and state management.
     *   Services manage their own internal state, often using `@Published` properties.
     *   Provide functionalities and data to the ViewModel.
+    *   Conform to protocols (e.g., `HapticsManaging`) where appropriate to facilitate dependency injection and testing.
     *   Can communicate with each other indirectly via the ViewModel or through dependency injection if necessary (though currently communication is orchestrated by `GameViewModel`).
-    *   Examples: `GameStateManager`, `CardSelectionManager`, `ConnectionDrawingService`, `ScoreAnimator`, `HapticsManager`, `PokerHandDetector`.
+    *   Examples: `GameStateManager`, `CardSelectionManager`, `ConnectionDrawingService`, `ScoreAnimator`, `HapticsManager` (implements `HapticsManaging`), `PokerHandDetector`.
 
 4.  **Model Layer (Swift)**
     *   Represents the data structures and domain entities.
@@ -50,7 +51,7 @@ graph LR
         CSM[CardSelectionManager]
         CDS[ConnectionDrawingService]
         SA[ScoreAnimator]
-        HM[HapticsManager]
+        HM[HapticsManager <br/> (HapticsManaging)]
         PHD[PokerHandDetector]
     end
 
@@ -80,7 +81,7 @@ graph LR
 2.  **ViewModel Orchestration**: `GameViewModel` receives the action, determines which Service(s) need to be involved, and calls their methods (e.g., `cardSelectionManager.selectCard()`, `gameStateManager.removeCardsAndShiftAndDeal()`).
 3.  **Service Logic & State Update**: Services execute their logic (e.g., `CardSelectionManager` updates `selectedCards`, `GameStateManager` updates `cardPositions` and `score`).
 4.  **State Publishing (Service -> ViewModel)**: Services publish their state changes via `@Published` properties. `GameViewModel` subscribes to these using Combine's `.assign(to:)` to update its own `@Published` properties.
-5.  **Callbacks (Service -> ViewModel)**: Services use callbacks (e.g., `onNewCardsDealt`) to signal completion of asynchronous tasks or significant events. `GameViewModel` implements these callbacks to trigger subsequent actions in other services (e.g., updating eligibility after dealing cards).
+5.  **Callbacks (Service -> ViewModel)**: Services use callbacks (e.g., `onNewCardsDealt`) to signal completion of asynchronous tasks or significant events like animation sequences. `GameViewModel` implements these callbacks to trigger subsequent actions in other services (e.g., updating eligibility after dealing cards).
 6.  **State Publishing (ViewModel -> View)**: `GameViewModel` publishes the combined/relevant state to `GameView`.
 7.  **UI Update**: `GameView` observes the ViewModel's `@Published` properties and automatically re-renders relevant parts of the UI.
 
@@ -252,12 +253,14 @@ struct CardPosition: Identifiable, Equatable {
     var currentCol: Int // Current visual col (animated)
     var targetRow: Int  // Final row after shift/deal
     var targetCol: Int  // Final col after shift/deal
+    var isBeingRemoved: Bool = false // Flag for removal animation
 }
 ```
 - Tracks a specific card's placement in the grid.
 - `id` is distinct from `card.id`.
 - `currentRow`/`currentCol` represent the current animated position.
 - `targetRow`/`targetCol` represent the destination position after animations complete (used for layout calculations).
+- `isBeingRemoved` flag drives the explicit removal animation.
 
 ## View Layer Components
 
@@ -357,24 +360,13 @@ struct GradientText<Content: View>: View {
 - Animation state management (`isAnimatingHandText`, `isErrorState`, etc.)
 - Game reset logic
 - Card grid updates (refilling, shifting)
+- **Dependencies:** Injected with `GameStateManager`, `CardSelectionManager`, `ConnectionDrawingService`, `ScoreAnimator`, `HapticsManaging`.
+- **Note:** Contains a temporary convenience `init()` for easier `GameView` instantiation, pending full DI setup.
 
-### Connection ViewModel
-- Connection management
-- Path optimization
-- Animation timing
-- Visual effects
-- Performance monitoring
-
-### Background ViewModel
-- Gradient state management
-- Position animation
-- Color coordination
-- iOS version handling
-- Performance optimization
-
-### Haptic Feedback State (Conceptual)
-- `GameViewModel` directly manages and triggers feedback generators.
-- Generators include `UISelectionFeedbackGenerator`, `UIImpactFeedbackGenerator`, `UINotificationFeedbackGenerator`.
+### Haptic Feedback State (Conceptual) -> Renamed to Haptic Feedback Integration
+- Haptic feedback is generated by `HapticsManager` (conforming to `HapticsManaging`).
+- The `HapticsManaging` instance is injected into `GameViewModel`, `GameStateManager`, `CardSelectionManager`.
+- ViewModels/Services call methods on the injected `HapticsManaging` instance.
 - Feedback is tied to specific game actions (selection, success, error, reset, card movement).
 
 ## State Management
@@ -887,32 +879,37 @@ This architecture ensures:
 ### GameStateManager
 - **Purpose**: Central manager for the core game state, including the deck, grid layout, scoring, and game over conditions.
 - **State Managed**: `deck`, `cardPositions: [CardPosition]`, `score: Int`, `isGameOver: Bool`, `lastPlayedHand: HandType?`.
-- **Key Functions**: `setupDeck`, `dealInitialCards`, `removeCardsAndShiftAndDeal` (initiates card removal, shifting, and dealing), `shiftCardsDown`, `dealNewCardsToFillGrid`, `checkGameOver`, `canSelectCards`.
+- **Key Functions**: `setupDeck`, `dealInitialCards`, `removeCardsAndShiftAndDeal` (orchestrates the sequenced animation: trigger removal -> **await Task.sleep** -> update data -> trigger shift -> await shift -> trigger deal), `shiftCardsDown`, `dealNewCardsToFillGrid`, `checkGameOver`, `canSelectCards`.
 - **Communication**: Publishes state changes (`@Published`), provides callbacks (`onNewCardsDealt`, `onGameOverChecked`).
+- **Dependencies:** Injected with `HapticsManaging`.
 
 ### CardSelectionManager
 - **Purpose**: Manages the state related to user card selection and eligibility.
 - **State Managed**: `selectedCards: Set<Card>`, `eligibleCards: Set<Card>`, `selectionOrder: [Card]`, `currentHandText: String?`, `isErrorState: Bool`, `isSuccessState: Bool`.
-- **Key Functions**: `selectCard`, `unselectAllCards`, `updateEligibleCards`, `updateCurrentHandText`, state setters/resetters (`setErrorState`, `setSuccessState`, etc.).
+- **Key Functions**: `selectCard`, `unselectAllCards`, `updateEligibleCards`, `updateCurrentHandText`, state setters/resetters (`setErrorState`, `setSuccessState`, `resetErrorState`, `resetSuccessState`, `reset`).
 - **Communication**: Publishes state changes (`@Published`), provides callback (`onSelectionChanged`). Depends on `GameStateManager` for position data and adjacency checks.
+- **Dependencies:** Injected with `GameStateManager`, `HapticsManaging`.
 
 ### ConnectionDrawingService
 - **Purpose**: Calculates the visual connection paths between selected cards.
 - **State Managed**: `connections: [Connection]`.
 - **Key Functions**: `updateConnections`, `resetConnections`.
 - **Communication**: Publishes `connections` (`@Published`). Depends on `GameStateManager` and `CardSelectionManager` for input data.
+- **Dependencies:** Injected with `GameStateManager`, `CardSelectionManager`.
 
 ### ScoreAnimator
 - **Purpose**: Handles the visual animation of the score updating.
 - **State Managed**: `displayedScore: Int`, `isScoreAnimating: Bool`, `targetScore: Int`.
 - **Key Functions**: `updateScore`, `resetScoreDisplay`.
 - **Communication**: Publishes `displayedScore` and `isScoreAnimating` (`@Published`).
+- **Dependencies:** None.
 
 ### HapticsManager
 - **Purpose**: Provides a centralized way to trigger haptic feedback.
+- **Protocol Conformance**: Implements the `HapticsManaging` protocol.
 - **State Managed**: None (manages feedback generators internally).
 - **Key Functions**: `playSelectionChanged`, `playDeselectionImpact`, `playSuccessNotification`, etc.
-- **Communication**: Provides methods to be called by ViewModel/other Services.
+- **Communication**: Provides methods defined in `HapticsManaging`.
 
 ### PokerHandDetector
 - **Purpose**: Contains stateless logic to detect poker hands.
@@ -941,7 +938,7 @@ This architecture ensures:
 - **Role**: Displays the grid of `CardView`s.
 - **Data**: Iterates over `viewModel.cardPositions`.
 - **Layout**: Uses `LazyVStack`/`LazyHStack`.
-- **Animation**: Animates `CardView` offset based on `cardPosition.currentRow`/`currentCol` changes.
+- **Animation**: Animates `CardView` offset based on `cardPosition.currentRow`/`currentCol` changes for shifts. Applies `scaleEffect` and `opacity` based on `cardPosition.isBeingRemoved` for removal animation using a dedicated `.animation` modifier. Uses `.transition` for new card appearance.
 - **Interaction**: Delegates card taps to `viewModel.selectCard`, background taps to `viewModel.unselectAllCards`.
 
 ### ConnectionLinesLayer

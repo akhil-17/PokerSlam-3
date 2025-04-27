@@ -1,7 +1,7 @@
 import SwiftUI // For UIImpactFeedbackGenerator etc.
 
 @MainActor
-final class HapticsManager {
+final class HapticsManager: HapticsManaging {
     // Selection
     private let selectionFeedback = UISelectionFeedbackGenerator()
     private let deselectionFeedback = UIImpactFeedbackGenerator(style: .light)
