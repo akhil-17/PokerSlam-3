@@ -934,9 +934,10 @@ struct GlyphAnimatedText: View {
         .onChange(of: text) {
             animateGlyphs()
         }
-        .onChange(of: isWaveAnimating) { newValue in
-             if newValue && visibleGlyphs < text.count {
-             }
+        .onChange(of: isWaveAnimating) {
+             // if newValue && visibleGlyphs < text.count { 
+             //     // Body was empty, no action needed
+             // }
         }
     }
 

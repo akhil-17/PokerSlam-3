@@ -129,7 +129,7 @@ final class GameViewModel: ObservableObject {
         }
 
         // When GameStateManager checks if the game is over, update UI state
-        gameStateManager.onGameOverChecked = { [weak self] in
+        gameStateManager.onGameOverChecked = {
             // No explicit action needed here now, GameView observes gameStateManager.isGameOver directly
         }
     }

@@ -228,7 +228,6 @@ final class GameStateManager: ObservableObject {
                 // Use GridConstants.rows
                 var currentTargetRow = GridConstants.rows - 1 // Start checking from the bottom row (index 4)
                 for card in columnCards.reversed() { // Iterate bottom-up
-                    let originalRow = card.currentRow
                     // Find the index in the *copy* being updated
                     if let cardIndex = cardsToUpdate.firstIndex(where: { $0.id == card.id }) {
                         // Check if the target row needs to be updated in the copy
