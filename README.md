@@ -33,7 +33,7 @@ PokerSlam is an engaging puzzle game where players create poker hands by selecti
 - Simplified main menu (tap anywhere to start)
 - Enhanced game header with score display, exit button, and help button for Hand Reference access.
 - Updated HandReferenceView: Presented as an overlay with a top-right close button, custom fonts, mini card previews for examples, and a bottom fade gradient.
-- **Coordinated Card Animations:** Smooth, sequenced animations for card removal (fade/scale out), shifting, and dealing new cards.
+- **Coordinated Card Animations:** Smooth, sequenced animations for card removal (fade/scale out with delay), shifting (spring), and dealing new cards (spring). Restored removal animation timing.
 - Adaptive layout respecting device safe areas.
 
 ### Game Rules
@@ -56,17 +56,19 @@ PokerSlam is an engaging puzzle game where players create poker hands by selecti
   - SwiftUI's built-in tools (`@State`, `@StateObject`, `@Published`)
   - `ObservableObject` protocol for ViewModels and Services
   - Bindings for connecting UI and state
+  - Callbacks and Combine framework for service communication
 - **Data Persistence**: UserDefaults for high scores
 - **Design Patterns**:
-  - Protocol-oriented programming
+  - Protocol-oriented programming (e.g., `HapticsManaging` for testability)
   - Value types (structs) for models
   - Observable pattern for state management
-  - Dependency injection
+  - Dependency injection (via initializers, using protocols where applicable)
 - **iOS Features**:
   - MeshGradient for iOS 18.0+ (with fallback for earlier versions)
   - SIMD2 for efficient vector operations
   - Advanced animation system
   - Comprehensive poker hand detection system
+  - Core Haptics
 
 ## 📁 Project Structure
 
@@ -88,6 +90,7 @@ PokerSlam/
 │   ├── ScoreAnimator.swift # Manages score display animation
 │   ├── HapticsManager.swift # Centralizes haptic feedback generation
 │   └── PokerHandDetector.swift # Detects poker hands
+├── Protocols.swift       # Shared protocols (e.g., HapticsManaging)
 ├── Extensions/          # Swift extensions
 │   └── Color+Hex.swift  # Color extension for hex color support
 ├── Resources/           # Assets and resources
@@ -104,17 +107,17 @@ PokerSlam/
 ### MVVM Architecture with Service Layer
 - **Models**: Pure data structures representing game entities and state.
 - **Views**: SwiftUI views responsible for UI layout and presentation.
-- **ViewModels**: Orchestrates data flow between Views and Services. `GameViewModel` acts as the central coordinator for the main game screen, managing dependencies between services and exposing combined state to the `GameView`.
-- **Services**: Encapsulate specific domains of game logic (e.g., `GameStateManager`, `CardSelectionManager`, `HapticsManager`). They manage their own state and provide functionalities accessed by the ViewModel.
+- **ViewModels**: Orchestrates data flow between Views and Services. `GameViewModel` acts as the central coordinator for the main game screen, managing dependencies between services (often injected via protocols like `HapticsManaging`) and exposing combined state to the `GameView`.
+- **Services**: Encapsulate specific domains of game logic (e.g., `GameStateManager`, `CardSelectionManager`, `HapticsManager`). They manage their own state and provide functionalities accessed by the ViewModel. Conform to protocols where necessary for dependency injection and testability.
 
 ### State Management
 - **ViewModel State**: `GameViewModel` uses `@Published` properties to expose necessary state derived from underlying services to `GameView`.
 - **Service State**: Services like `GameStateManager` and `CardSelectionManager` manage their internal state using `@Published` properties.
 - **Bindings**: SwiftUI bindings connect UI elements to the ViewModel's published state.
-- **Callbacks**: Services use callbacks (e.g., `onNewCardsDealt` in `GameStateManager`) to notify the `GameViewModel` of significant events, allowing the ViewModel to coordinate actions between services (e.g., updating eligibility in `CardSelectionManager` after cards are dealt).
+- **Callbacks & Combine**: Services use callbacks (e.g., `onNewCardsDealt` in `GameStateManager`) or Combine publishers to notify the `GameViewModel` of significant events or state changes, allowing the ViewModel to coordinate actions between services.
 
 ### Design Principles
-- Protocol-oriented programming
+- Protocol-oriented programming (using protocols like `HapticsManaging`)
 - Value types for models
 - Clean separation of concerns
 - Reactive programming with SwiftUI
@@ -165,6 +168,8 @@ PokerSlam/
     - Includes mini card previews (`CardView(style: .mini)`) within each `HandReferenceRow` to visually represent example hands.
     - Implements a bottom fade gradient overlay for a polished look.
     - Contains `SectionHeader` and `HandReferenceRow` sub-components for structured content presentation.
+- **Coordinated Card Animations:** Smooth, sequenced animations for card removal (fade/scale out with delay), shifting (spring), and dealing new cards (spring). Restored removal animation timing.
+- **Button Feedback:** Error wiggle animation restored for invalid hand attempts on the "Play hand" button.
 
 ## 🔧 Technical Implementation
 
@@ -194,6 +199,11 @@ PokerSlam/
 - Customizable color palette and animation timing
 - Mesh gradient text effects with sequential glyph animation
 - Spring-based character animations with blur and opacity transitions
+
+### Haptic Feedback System
+- Centralized in `HapticsManager` (conforming to `HapticsManaging` protocol).
+- Provides distinct feedback for selection, deselection, success, error, reset, card shifts, and new card deals.
+- Injected into relevant services/viewModels using the `HapticsManaging` protocol.
 
 ### Performance Optimizations
 - Efficient card position tracking

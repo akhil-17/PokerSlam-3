@@ -29,6 +29,7 @@ PokerSlam/
 │   ├── CardPosition.swift # Tracks card row, column, target positions, and removal state
 │   ├── Connection.swift  # Represents a visual connection between cards
 │   └── ...
+├── Protocols.swift       # Shared protocols (e.g., HapticsManaging)
 ├── Services/             # Core Logic and State Managers
 │   ├── GameStateManager.swift # Manages deck, card layout, scoring, game over logic
 │   ├── CardSelectionManager.swift # Handles card selection, eligibility, hand text state
@@ -418,12 +419,18 @@ class GameState: ObservableObject {
 // Removal visual effect (applied to CardView)
 .scaleEffect(cardPosition.isBeingRemoved ? 0.1 : 1.0)
 .opacity(cardPosition.isBeingRemoved ? 0 : 1)
+
+// Card removal sequence in GameStateManager.removeCardsAndShiftAndDeal:
+// 1. Trigger removal animation (set isBeingRemoved = true) within withAnimation
+// 2. await Task.sleep(nanoseconds: removalDuration) // <-- Reinstated delay
+// 3. cardPositions.removeAll { $0.isBeingRemoved }
+// 4. Trigger shift animation
 ```
 - Spring-based movement for shifting.
 - Scale and fade-out animation for removal, triggered by `isBeingRemoved` flag in `CardPosition`.
-- The removal animation uses the same spring parameters as the new card deal animation for symmetry.
+- **Removal Delay:** A `Task.sleep` is now used after triggering the removal animation to allow it to play before data is removed from the source array.
 - Standard opacity/scale transition for new card appearance.
-- Smooth transitions
+- Smooth transitions.
 
 #### UI Animations
 - Scale effects
@@ -635,7 +642,18 @@ struct PrimaryButton: View {
             .shadow(color: .black.opacity(0.10), radius: 20, x: 0, y: 20)
         }
         .padding()
-        .modifier(PrimaryButtonAnimationModifier(action: action))
+        .modifier(PrimaryButtonAnimationModifier(action: action, isSuccessState: isSuccessState, isErrorState: isErrorState))
+        .modifier(SuccessAnimationModifier(isSuccess: isSuccessState))
+        .onChange(of: errorAnimationTimestamp) { oldValue, newValue in
+            if newValue != nil && oldValue == nil {
+                // Start the wiggle animation
+                isWiggling = true
+                // Reset after animation completes
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                    isWiggling = false
+                }
+            }
+        }
     }
 }
 ```
@@ -644,9 +662,7 @@ struct PrimaryButton: View {
 - Applies sequential text animation with glyph-by-glyph reveal
 - Supports optional icon with mesh gradient effect
 - Implements entrance and exit animations
-- Provides visual feedback for user interactions
-- Applies shared success animation (scale/glow) via SuccessAnimationModifier based on state
-- Applies error wiggle animation based on state
+- **Visual Feedback**: Provides clear visual cues for user interactions, including success (scale/glow) and error (wiggle) animations driven by ViewModel state (`isSuccessState`, `errorAnimationTimestamp`). The error timestamp is reset after delay in `GameViewModel` to allow the wiggle to trigger on subsequent errors.
 
 #### ButtonTextLabel
 ```swift
@@ -918,6 +934,8 @@ struct AppearanceEffectRenderer: TextRenderer, Animatable {
 - Supports emphasis attribute for selective animation
 
 ### 11. Haptic Feedback System
+- **Protocol**: Uses `HapticsManaging` protocol for dependency injection and testing.
+- **Implementation**: `HapticsManager` conforms to `HapticsManaging` and centralizes feedback generation.
 - `UISelectionFeedbackGenerator`: Used for card selection changes.
 - `UIImpactFeedbackGenerator`: Used for deselection (.light), card shifting (.light), new card appearance (.soft).
 - `UINotificationFeedbackGenerator`: Used for success hand play (.success), error hand play (.error), and game reset (.success).

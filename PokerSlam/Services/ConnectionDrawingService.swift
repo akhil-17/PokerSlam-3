@@ -128,7 +128,7 @@ final class ConnectionDrawingService: ObservableObject {
 
         // Ensure all selected cards have positions before proceeding
         guard selectedCards.allSatisfy({ cardPositionMap[$0.id] != nil }) else {
-             print("🔥 Error: Not all selected cards have positions in the map.")
+             assertionFailure("ConnectionDrawingService: Not all selected cards have positions in the map.")
              return
         }
 
@@ -153,11 +153,11 @@ final class ConnectionDrawingService: ObservableObject {
         replaceDiagonalWithStraightPaths(selectionOrder: selectionOrder, cardPositionMap: cardPositionMap)
         validateAllCardsConnected(selectionOrder: selectionOrder, cardPositionMap: cardPositionMap, selectedCardIds: selectedCardIds)
         
-        print("🔗 Connections updated. Count: \(connections.count)")
+        // print("🔗 Connections updated. Count: \(connections.count)") // Removed
     }
 
     func resetConnections() {
-        print("🔄 Resetting Connections...")
+        // print("🔄 Resetting Connections...") // Removed
         connections.removeAll()
     }
 

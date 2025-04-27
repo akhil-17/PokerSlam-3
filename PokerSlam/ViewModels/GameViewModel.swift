@@ -10,7 +10,7 @@ final class GameViewModel: ObservableObject {
     private let cardSelectionManager: CardSelectionManager
     private let connectionDrawingService: ConnectionDrawingService
     private let scoreAnimator: ScoreAnimator
-    private let hapticsManager: HapticsManager
+    private let hapticsManager: HapticsManaging
 
     // MARK: - Published Properties for UI Binding
     // State proxied from underlying services
@@ -45,20 +45,30 @@ final class GameViewModel: ObservableObject {
     // MARK: - Combine Cancellables
     private var cancellables = Set<AnyCancellable>()
 
-    // MARK: - Initialization
-    init() {
-        // Instantiate services
-        self.hapticsManager = HapticsManager()
-        // Pass dependencies (HapticsManager, default detector) to GameStateManager
-        self.gameStateManager = GameStateManager(hapticsManager: self.hapticsManager)
-        // ScoreAnimator needs no deps initially
-        self.scoreAnimator = ScoreAnimator()
-        // CardSelectionManager needs GameState and Haptics
-        self.cardSelectionManager = CardSelectionManager(gameStateManager: self.gameStateManager, hapticsManager: self.hapticsManager)
-        // ConnectionDrawingService needs GameState and Selection
-        self.connectionDrawingService = ConnectionDrawingService(gameStateManager: self.gameStateManager, cardSelectionManager: self.cardSelectionManager)
+    // Convenience initializer for SwiftUI Views (creates own dependencies)
+    // TODO: Replace with proper dependency injection from App level
+    convenience init() {
+        let haptics = HapticsManager()
+        let gameState = GameStateManager(hapticsManager: haptics)
+        let selection = CardSelectionManager(gameStateManager: gameState, hapticsManager: haptics)
+        let connections = ConnectionDrawingService(gameStateManager: gameState, cardSelectionManager: selection)
+        let animator = ScoreAnimator() 
+        self.init(gameStateManager: gameState, 
+                  cardSelectionManager: selection, 
+                  connectionDrawingService: connections, 
+                  scoreAnimator: animator, // Pass animator
+                  hapticsManager: haptics)
+    }
 
-        print("🚀 GameViewModel Initialized")
+    // MARK: - Initialization (Designated Initializer)
+    // Add scoreAnimator to init
+    init(gameStateManager: GameStateManager, cardSelectionManager: CardSelectionManager, connectionDrawingService: ConnectionDrawingService, scoreAnimator: ScoreAnimator, hapticsManager: HapticsManaging) {
+        self.gameStateManager = gameStateManager
+        self.cardSelectionManager = cardSelectionManager
+        self.connectionDrawingService = connectionDrawingService
+        self.scoreAnimator = scoreAnimator
+        self.hapticsManager = hapticsManager
+
         setupBindings()
         setupCallbacks()
 
@@ -68,7 +78,6 @@ final class GameViewModel: ObservableObject {
     }
 
     private func setupBindings() {
-        print("🔗 Setting up bindings...")
         // Bind GameStateManager properties
         gameStateManager.$cardPositions
             .assign(to: &$cardPositions)
@@ -103,29 +112,26 @@ final class GameViewModel: ObservableObject {
         scoreAnimator.$isScoreAnimating
             .assign(to: &$isScoreAnimating)
         
-         print("✅ Bindings setup complete.")
     }
 
     private func setupCallbacks() {
-         print("📞 Setting up callbacks...")
-        // When selection changes, update connections
+        // When selection changes in CardSelectionManager, update ConnectionDrawingService
         cardSelectionManager.onSelectionChanged = { [weak self] in
-             print("Callback: Selection Changed -> Updating Connections")
+            // Call updateConnections with no arguments
             self?.connectionDrawingService.updateConnections()
         }
-        
-        // When new cards are dealt (initial or after play), update eligibility
+
+        // When new cards are dealt by GameStateManager, update eligible cards
         gameStateManager.onNewCardsDealt = { [weak self] in
-             print("Callback: New Cards Dealt -> Updating Eligibility")
-            self?.cardSelectionManager.updateEligibleCards()
+            // CardSelectionManager updates its own published eligibleCards.
+            // We just need to ensure its internal method is called.
+            self?.cardSelectionManager.updateEligibleCards() // Call with no arguments
         }
-        
-        // When game over check completes (optional, if VM needs to react)
-         gameStateManager.onGameOverChecked = { [weak self] in
-             print("Callback: Game Over Checked. Is Over: \(self?.gameStateManager.isGameOver ?? true)")
-             // Can perform actions here if needed when game over state is confirmed
-         }
-         print("✅ Callbacks setup complete.")
+
+        // When GameStateManager checks if the game is over, update UI state
+        gameStateManager.onGameOverChecked = { [weak self] in
+            // No explicit action needed here now, GameView observes gameStateManager.isGameOver directly
+        }
     }
 
     // MARK: - Computed Properties for UI
@@ -139,31 +145,30 @@ final class GameViewModel: ObservableObject {
 
     /// Selects or deselects a card.
     func selectCard(_ card: Card) {
-        print("🖱️ selectCard Action: \(card.rank)\(card.suit)")
-        cardSelectionManager.selectCard(card)
-        // Connection update is handled by the onSelectionChanged callback
+        gameStateManager.setUserInteracted() // Correct call
+        cardSelectionManager.selectCard(card) // Correct call (no extra args)
     }
 
     /// Unselects all currently selected cards.
     func unselectAllCards() {
-        print("🖱️ unselectAllCards Action")
         cardSelectionManager.unselectAllCards()
-         // Connection update is handled by the onSelectionChanged callback
+        // eligibleCards updated via onSelectionChanged callback
     }
 
     /// Plays the currently selected hand.
     func playHand() {
-        print("▶️ playHand Action")
-        let cardsToPlay = Array(cardSelectionManager.selectedCards)
-        guard !cardsToPlay.isEmpty else {
-             print("⚠️ Play attempt with no cards selected.")
-             return
+        gameStateManager.setUserInteracted() // Correct call
+        guard !cardSelectionManager.selectedCards.isEmpty else {
+            return
         }
 
-        if let handType = PokerHandDetector.detectHand(cards: cardsToPlay) {
-            print("✅ Valid Hand Detected: \(handType.displayName)")
-            // --- Valid Hand Sequence ---
-            gameStateManager.updateScore(by: handType.rawValue)
+        let playedCards = cardSelectionManager.selectedCards
+        // Correct call: add label, convert Set to Array
+        if let handType = PokerHandDetector.detectHand(cards: Array(playedCards)) { 
+            
+            // Calculate Score
+            let scoreValue = handType.rawValue // Correctly use rawValue
+            gameStateManager.updateScore(by: scoreValue)
             gameStateManager.setLastPlayedHand(handType)
             scoreAnimator.updateScore(gameStateManager.score) // Animate to new score
             hapticsManager.playSuccessNotification()
@@ -172,62 +177,53 @@ final class GameViewModel: ObservableObject {
             cardSelectionManager.clearSelectionAfterPlay() // Clear selection model state
             connectionDrawingService.resetConnections() // Clear connection lines immediately
             
-            // Trigger removal/shift/deal in GameStateManager
-            // Wrap the async call in a Task
+            // Perform async actions: remove, shift, deal
             Task {
-                await gameStateManager.removeCardsAndShiftAndDeal(playedCards: cardsToPlay)
-                // GameStateManager now handles its internal sequencing and callbacks
-            }
-
-            // Schedule the reset of the success UI state after animation durations
-            DispatchQueue.main.asyncAfter(deadline: .now() + AnimationConstants.successStateResetDelay) { // Match original delay
-                print("⏱️ Resetting success state UI after delay")
-                // Use withAnimation if GameView needs it for the state change
-                withAnimation(AnimationConstants.uiStateResetAnimation) {
-                    self.cardSelectionManager.resetSuccessState()
-                }
-                 // Eligibility is updated via GameStateManager callback (onNewCardsDealt)
+                // Correct call: convert Set to Array
+                await gameStateManager.removeCardsAndShiftAndDeal(playedCards: Array(playedCards))
+                // Reset selection AFTER animations/dealing are triggered in GSM
+                // But do it before resetting UI state
+                self.cardSelectionManager.unselectAllCards()
+                
+                // Wait a tiny bit for state to potentially settle before resetting UI flag
+                try? await Task.sleep(nanoseconds: 100_000_000) // 0.1 seconds
+                
+                // Reset the success state so button can reappear
+                self.cardSelectionManager.resetSuccessState()
             }
 
         } else {
-             print("❌ Invalid Hand Attempt")
-            // --- Invalid Hand Sequence ---
-            gameStateManager.setLastPlayedHand(nil)
-            hapticsManager.playErrorNotification()
-            cardSelectionManager.setErrorState()
-
-            // Schedule the reset of the error UI state
-            DispatchQueue.main.asyncAfter(deadline: .now() + AnimationConstants.errorStateResetDelay) { // Match original delay
-                print("⏱️ Resetting error state UI after delay")
-                 // Use withAnimation if GameView needs it for the state change
-                 // Use AnimationConstants.uiStateResetAnimation (or a specific one for error)
-                 // withAnimation(AnimationConstants.uiStateResetAnimation) { ... }
-                 self.cardSelectionManager.resetErrorState()
+            // Trigger error haptic/animation
+            hapticsManager.playErrorNotification() // Correct haptic method
+            cardSelectionManager.setErrorState() // Set state via manager
+            Task {
+                try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds duration for error indication
+                // Reset error state AFTER delay
+                cardSelectionManager.resetErrorState()
             }
+            // Keep cards selected after invalid attempt
         }
     }
 
     /// Resets the game to its initial state.
     func resetGame() {
-        print("🔄 resetGame Action")
-        guard !isResetting else { return } // Prevent double-reset
-
-        isResetting = true
+        // 1. Trigger Reset Animation/State
+        isResetting = true // Use correct property
         hapticsManager.playResetNotification()
 
         // Reset all services
         gameStateManager.resetState()
-        cardSelectionManager.resetSelection()
+        cardSelectionManager.reset() // Correct reset method name
         scoreAnimator.resetScoreDisplay() // Reset displayed score to 0
         connectionDrawingService.resetConnections()
 
         // Deal new cards (this will trigger callbacks)
         gameStateManager.dealInitialCards()
         
-        // Reset the isResetting flag after a delay
-        DispatchQueue.main.asyncAfter(deadline: .now() + AnimationConstants.gameResetDelay) { // Match original delay
-            print("⏱️ Resetting resetGame state UI after delay")
-            self.isResetting = false
+        // 4. Reset UI animation flag slightly later
+        Task {
+            try? await Task.sleep(nanoseconds: 500_000_000) // Allow reset animation to start
+            self.isResetting = false // Use correct property
         }
     }
 }
