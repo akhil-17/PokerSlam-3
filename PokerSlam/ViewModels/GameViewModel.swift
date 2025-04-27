@@ -49,8 +49,8 @@ final class GameViewModel: ObservableObject {
     init() {
         // Instantiate services
         self.hapticsManager = HapticsManager()
-        // GameStateManager needs no deps initially
-        self.gameStateManager = GameStateManager()
+        // Pass dependencies (HapticsManager, default detector) to GameStateManager
+        self.gameStateManager = GameStateManager(hapticsManager: self.hapticsManager)
         // ScoreAnimator needs no deps initially
         self.scoreAnimator = ScoreAnimator()
         // CardSelectionManager needs GameState and Haptics
@@ -173,15 +173,17 @@ final class GameViewModel: ObservableObject {
             connectionDrawingService.resetConnections() // Clear connection lines immediately
             
             // Trigger removal/shift/deal in GameStateManager
-            // This process is asynchronous internally
-            gameStateManager.removeCardsAndShiftAndDeal(playedCards: cardsToPlay)
-            // GameStateManager will call callbacks on completion for eligibility/gameover
+            // Wrap the async call in a Task
+            Task {
+                await gameStateManager.removeCardsAndShiftAndDeal(playedCards: cardsToPlay)
+                // GameStateManager now handles its internal sequencing and callbacks
+            }
 
             // Schedule the reset of the success UI state after animation durations
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { // Match original delay
+            DispatchQueue.main.asyncAfter(deadline: .now() + AnimationConstants.successStateResetDelay) { // Match original delay
                 print("⏱️ Resetting success state UI after delay")
                 // Use withAnimation if GameView needs it for the state change
-                withAnimation(.easeOut(duration: 0.3)) {
+                withAnimation(AnimationConstants.uiStateResetAnimation) {
                     self.cardSelectionManager.resetSuccessState()
                 }
                  // Eligibility is updated via GameStateManager callback (onNewCardsDealt)
@@ -195,10 +197,11 @@ final class GameViewModel: ObservableObject {
             cardSelectionManager.setErrorState()
 
             // Schedule the reset of the error UI state
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { // Match original delay
+            DispatchQueue.main.asyncAfter(deadline: .now() + AnimationConstants.errorStateResetDelay) { // Match original delay
                 print("⏱️ Resetting error state UI after delay")
                  // Use withAnimation if GameView needs it for the state change
-                 // withAnimation(...) { ... }
+                 // Use AnimationConstants.uiStateResetAnimation (or a specific one for error)
+                 // withAnimation(AnimationConstants.uiStateResetAnimation) { ... }
                  self.cardSelectionManager.resetErrorState()
             }
         }
@@ -222,7 +225,7 @@ final class GameViewModel: ObservableObject {
         gameStateManager.dealInitialCards()
         
         // Reset the isResetting flag after a delay
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { // Match original delay
+        DispatchQueue.main.asyncAfter(deadline: .now() + AnimationConstants.gameResetDelay) { // Match original delay
             print("⏱️ Resetting resetGame state UI after delay")
             self.isResetting = false
         }

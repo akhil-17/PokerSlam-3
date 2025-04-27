@@ -216,17 +216,11 @@ extension Font {
         .custom("Kanit-SemiBold", size: 24)
     }
 
-    // MARK: - Card Fonts (Add new mini styles)
+    // MARK: - Card Fonts (These are now defined in Core/Constants.swift)
 
-    /// Font for standard card rank/suit
-    static var cardStandardText: Font {
-        .system(size: 28, weight: .semibold, design: .rounded) // Match CardView usage
-    }
-    
-    /// Font for mini card rank/suit (approx 70% of standard)
-    static var cardMiniText: Font {
-        .system(size: 20, weight: .semibold, design: .rounded) // 28 * 0.7 = 19.6 -> 20
-    }
+    // Removed duplicate definitions:
+    // static var cardStandardText: Font { ... }
+    // static var cardMiniText: Font { ... }
 }
 
 // MARK: - View Extensions
