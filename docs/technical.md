@@ -26,7 +26,7 @@ PokerSlam/
 ├── Models/               # Data Models
 │   ├── Card.swift        # Card model (Suit, Rank)
 │   ├── HandType.swift    # Poker hand types and scoring
-│   ├── CardPosition.swift # Tracks card row, column, and target positions
+│   ├── CardPosition.swift # Tracks card row, column, target positions, and removal state
 │   ├── Connection.swift  # Represents a visual connection between cards
 │   └── ...
 ├── Services/             # Core Logic and State Managers
@@ -71,7 +71,7 @@ struct CardGridView: View {
 - Fixed card dimensions (64x94)
 - 8-point spacing between cards
 - Dynamic card positioning
-- Spring animations for movement
+- Coordinated animations
 
 #### Card Positioning
 - Uses `CardPosition` struct for tracking
@@ -79,6 +79,24 @@ struct CardGridView: View {
 - Implements smooth transitions
 - Handles empty space management
 - Manages card shifting and filling
+
+#### CardPosition Model
+```swift
+struct CardPosition: Identifiable, Equatable {
+    let id = UUID() // Unique ID for the position instance
+    let card: Card
+    var currentRow: Int // Current visual row (animated)
+    var currentCol: Int // Current visual col (animated)
+    var targetRow: Int  // Final row after shift/deal
+    var targetCol: Int  // Final col after shift/deal
+    var isBeingRemoved: Bool = false // Flag for removal animation
+}
+```
+- Tracks a specific card's placement in the grid.
+- `id` is distinct from `card.id`.
+- `currentRow`/`currentCol` represent the current animated position.
+- `targetRow`/`targetCol` represent the destination position after animations complete (used for layout calculations).
+- `isBeingRemoved` flag drives the explicit removal animation.
 
 ### 2. Card Selection System
 
@@ -387,13 +405,25 @@ class GameState: ObservableObject {
 
 #### Card Animations
 ```swift
-.animation(.spring(response: 0.3, dampingFraction: 0.7), value: cardPosition.targetRow)
-.animation(.spring(response: 0.3, dampingFraction: 0.7), value: cardPosition.targetCol)
+// Shift animation (applied to CardView based on currentRow/currentCol changes)
+.animation(.spring(response: AnimationConstants.cardShiftSpringResponse, dampingFraction: AnimationConstants.cardShiftSpringDamping), value: cardPosition.currentRow)
+.animation(.spring(response: AnimationConstants.cardShiftSpringResponse, dampingFraction: AnimationConstants.cardShiftSpringDamping), value: cardPosition.currentCol)
+
+// Removal animation (applied to CardView based on isBeingRemoved changes)
+.animation(.spring(response: AnimationConstants.newCardDealSpringResponse, dampingFraction: AnimationConstants.newCardDealSpringDamping), value: cardPosition.isBeingRemoved)
+
+// Appearance transition (for new cards)
+.transition(.opacity.combined(with: .scale))
+
+// Removal visual effect (applied to CardView)
+.scaleEffect(cardPosition.isBeingRemoved ? 0.1 : 1.0)
+.opacity(cardPosition.isBeingRemoved ? 0 : 1)
 ```
-- Spring-based movement
+- Spring-based movement for shifting.
+- Scale and fade-out animation for removal, triggered by `isBeingRemoved` flag in `CardPosition`.
+- The removal animation uses the same spring parameters as the new card deal animation for symmetry.
+- Standard opacity/scale transition for new card appearance.
 - Smooth transitions
-- Performance optimized
-- Coordinated animations
 
 #### UI Animations
 - Scale effects
@@ -1268,15 +1298,16 @@ struct PokerHandDetector {
     - Instantiates and holds references to all necessary services (`GameStateManager`, `CardSelectionManager`, etc.).
     - **Orchestration**: Coordinates actions between services via direct calls and callbacks.
     - **State Exposure**: Uses `@Published` properties to expose required state (e.g., `cardPositions`, `selectedCards`, `displayedScore`, `isGameOver`) to `GameView`. It gets this state from the underlying services.
-    - **Bindings**: Sets up Combine bindings (`.assign(to:)`) to automatically update its `@Published` properties when the corresponding properties in the services change.
     - **Callbacks**: Registers callback closures with services (e.g., `gameStateManager.onNewCardsDealt`) to react to events and trigger necessary updates in other services (e.g., calling `cardSelectionManager.updateEligibleCards()`).
 
 ### 2. Game State Service (`GameStateManager.swift`)
 - **Responsibilities**: Manages the core game state: the deck, `cardPositions` array (including `currentRow`, `currentCol`, `targetRow`, `targetCol`), `score`, `isGameOver` flag, `lastPlayedHand`, and dealing logic.
-- **Card Lifecycle**: Handles `dealInitialCards`, `removeCardsAndShiftAndDeal`, `shiftCardsDown`, `dealNewCardsToFillGrid`.
+- **Card Lifecycle**: Handles `dealInitialCards`, `removeCardsAndShiftAndDeal`, `shiftCardsDown`, `dealNewCardsToFillGrid`. The `removeCardsAndShiftAndDeal` function now orchestrates the animation sequence: triggers removal animation (setting `isBeingRemoved`), immediately updates data source, immediately triggers shift animation, waits for shift animation to complete (`Task.sleep`), then triggers deal animation.
 - **Game Over Check**: Contains `checkGameOver` and the crucial `canSelectCards` helper (using BFS/DFS for connectivity check) to determine if any valid, *selectable* hands remain.
 - **State Publishing**: Uses `@Published` for key state variables (`cardPositions`, `score`, `isGameOver`, `lastPlayedHand`) that `GameViewModel` binds to.
 - **Callbacks**: Provides `onNewCardsDealt` and `onGameOverChecked` for `GameViewModel`.
+- **Animation**: Animates `CardView` offset based on `cardPosition.currentRow`/`currentCol` changes for shifts. Applies `scaleEffect` and `opacity` based on `cardPosition.isBeingRemoved` for removal animation.
+- **Interaction**: Delegates card taps to `viewModel.selectCard`, background taps to `viewModel.unselectAllCards`.
 
 ### 3. Card Selection Service (`CardSelectionManager.swift`)
 - **Responsibilities**: Manages the user's card selection process: `selectedCards` set, `eligibleCards` set, `selectionOrder`, `currentHandText`, and UI feedback states (`isErrorState`, `isSuccessState`).

@@ -33,6 +33,7 @@ PokerSlam is an engaging puzzle game where players create poker hands by selecti
 - Simplified main menu (tap anywhere to start)
 - Enhanced game header with score display, exit button, and help button for Hand Reference access.
 - Updated HandReferenceView: Presented as an overlay with a top-right close button, custom fonts, mini card previews for examples, and a bottom fade gradient.
+- **Coordinated Card Animations:** Smooth, sequenced animations for card removal (fade/scale out), shifting, and dealing new cards.
 - Adaptive layout respecting device safe areas.
 
 ### Game Rules

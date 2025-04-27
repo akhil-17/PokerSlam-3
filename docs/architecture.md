@@ -80,7 +80,7 @@ graph LR
 2.  **ViewModel Orchestration**: `GameViewModel` receives the action, determines which Service(s) need to be involved, and calls their methods (e.g., `cardSelectionManager.selectCard()`, `gameStateManager.removeCardsAndShiftAndDeal()`).
 3.  **Service Logic & State Update**: Services execute their logic (e.g., `CardSelectionManager` updates `selectedCards`, `GameStateManager` updates `cardPositions` and `score`).
 4.  **State Publishing (Service -> ViewModel)**: Services publish their state changes via `@Published` properties. `GameViewModel` subscribes to these using Combine's `.assign(to:)` to update its own `@Published` properties.
-5.  **Callbacks (Service -> ViewModel)**: Services use callbacks (e.g., `onNewCardsDealt`) to signal completion of asynchronous tasks or significant events. `GameViewModel` implements these callbacks to trigger subsequent actions in other services (e.g., updating eligibility after dealing cards).
+5.  **Callbacks (Service -> ViewModel)**: Services use callbacks (e.g., `onNewCardsDealt`) to signal completion of asynchronous tasks or significant events like animation sequences. `GameViewModel` implements these callbacks to trigger subsequent actions in other services (e.g., updating eligibility after dealing cards).
 6.  **State Publishing (ViewModel -> View)**: `GameViewModel` publishes the combined/relevant state to `GameView`.
 7.  **UI Update**: `GameView` observes the ViewModel's `@Published` properties and automatically re-renders relevant parts of the UI.
 
@@ -252,12 +252,14 @@ struct CardPosition: Identifiable, Equatable {
     var currentCol: Int // Current visual col (animated)
     var targetRow: Int  // Final row after shift/deal
     var targetCol: Int  // Final col after shift/deal
+    var isBeingRemoved: Bool = false // Flag for removal animation
 }
 ```
 - Tracks a specific card's placement in the grid.
 - `id` is distinct from `card.id`.
 - `currentRow`/`currentCol` represent the current animated position.
 - `targetRow`/`targetCol` represent the destination position after animations complete (used for layout calculations).
+- `isBeingRemoved` flag drives the explicit removal animation.
 
 ## View Layer Components
 
@@ -887,7 +889,7 @@ This architecture ensures:
 ### GameStateManager
 - **Purpose**: Central manager for the core game state, including the deck, grid layout, scoring, and game over conditions.
 - **State Managed**: `deck`, `cardPositions: [CardPosition]`, `score: Int`, `isGameOver: Bool`, `lastPlayedHand: HandType?`.
-- **Key Functions**: `setupDeck`, `dealInitialCards`, `removeCardsAndShiftAndDeal` (initiates card removal, shifting, and dealing), `shiftCardsDown`, `dealNewCardsToFillGrid`, `checkGameOver`, `canSelectCards`.
+- **Key Functions**: `setupDeck`, `dealInitialCards`, `removeCardsAndShiftAndDeal` (orchestrates the sequenced animation: trigger removal -> update data -> trigger shift -> await shift -> trigger deal), `shiftCardsDown`, `dealNewCardsToFillGrid`, `checkGameOver`, `canSelectCards`.
 - **Communication**: Publishes state changes (`@Published`), provides callbacks (`onNewCardsDealt`, `onGameOverChecked`).
 
 ### CardSelectionManager
@@ -941,7 +943,7 @@ This architecture ensures:
 - **Role**: Displays the grid of `CardView`s.
 - **Data**: Iterates over `viewModel.cardPositions`.
 - **Layout**: Uses `LazyVStack`/`LazyHStack`.
-- **Animation**: Animates `CardView` offset based on `cardPosition.currentRow`/`currentCol` changes.
+- **Animation**: Animates `CardView` offset based on `cardPosition.currentRow`/`currentCol` changes for shifts. Applies `scaleEffect` and `opacity` based on `cardPosition.isBeingRemoved` for removal animation using a dedicated `.animation` modifier. Uses `.transition` for new card appearance.
 - **Interaction**: Delegates card taps to `viewModel.selectCard`, background taps to `viewModel.unselectAllCards`.
 
 ### ConnectionLinesLayer
