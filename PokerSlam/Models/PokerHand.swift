@@ -254,144 +254,86 @@ struct PokerHandDetector {
     
     private static func isStraight(cards: [Card]) -> Bool {
         guard cards.count == 5 else { return false }
-        let ranks = cards.map { $0.rank.rawValue }
-        
-        // Sort ranks and handle Ace as both high and low
-        let sortedRanks = ranks.sorted()
-        
-        // Check for regular straight
-        var isRegularStraight = true
-        for i in 0...(sortedRanks.count - 2) {
-            if sortedRanks[i + 1] - sortedRanks[i] != 1 {
-                isRegularStraight = false
-                break
-            }
+        let uniqueRanks = Set(cards.map { $0.rank })
+        guard uniqueRanks.count == 5 else { return false } // Must have 5 distinct ranks
+
+        let sortedRankValues = cards.map { $0.rank.rawValue }.sorted()
+
+        // Check for normal straight (no Ace involved, or Ace is high/low in standard sequence)
+        let isStandardConsecutive = (sortedRankValues[4] - sortedRankValues[0] == 4)
+        // Check for Ace-low straight (A, 2, 3, 4, 5)
+        let isAceLow = uniqueRanks == Set([.ace, .two, .three, .four, .five])
+
+        if isStandardConsecutive || isAceLow {
+            return true
         }
-        if isRegularStraight { return true }
+
+        // Explicitly check for Ace-bridge wrap-around cases (less common)
+        // Q-K-A-2-3
+        if uniqueRanks == Set([.queen, .king, .ace, .two, .three]) { return true }
+        // K-A-2-3-4
+        if uniqueRanks == Set([.king, .ace, .two, .three, .four]) { return true }
+        // A-2-3-4-K (Example of another possible wrap-around if needed)
+        // if uniqueRanks == Set([.ace, .two, .three, .four, .king]) { return true }
+        // A-2-J-Q-K (Example)
+        // if uniqueRanks == Set([.ace, .two, .jack, .queen, .king]) { return true }
         
-        // Check for Ace-high straight (10,J,Q,K,A)
-        if ranks.contains(1) { // Ace
-            let aceHighRanks = ranks.map { $0 == 1 ? 14 : $0 }
-            let sortedAceHighRanks = aceHighRanks.sorted()
-            
-            var isAceHighStraight = true
-            for i in 0...(sortedAceHighRanks.count - 2) {
-                if sortedAceHighRanks[i + 1] - sortedAceHighRanks[i] != 1 {
-                    isAceHighStraight = false
-                    break
-                }
-            }
-            if isAceHighStraight { return true }
-            
-            // Check for Ace-bridge straight (Q,K,A,2,3)
-            let aceBridgeRanks = ranks.map { $0 == 1 ? 0 : $0 } // Convert Ace to 0 for bridge case
-            let sortedAceBridgeRanks = aceBridgeRanks.sorted()
-            
-            var isAceBridgeStraight = true
-            for i in 0...(sortedAceBridgeRanks.count - 2) {
-                if sortedAceBridgeRanks[i + 1] - sortedAceBridgeRanks[i] != 1 {
-                    isAceBridgeStraight = false
-                    break
-                }
-            }
-            if isAceBridgeStraight { return true }
-        }
-        
+        // Note: 10-J-Q-K-A is covered by isStandardConsecutive after sorting raw values.
+
         return false
     }
     
     private static func isNearlyStraight(cards: [Card]) -> Bool {
         guard cards.count == 4 else { return false }
-        let ranks = cards.map { $0.rank.rawValue }
+        let uniqueRanks = Set(cards.map { $0.rank })
+        guard uniqueRanks.count == 4 else { return false } // Must have 4 distinct ranks
+
+        let sortedRankValues = cards.map { $0.rank.rawValue }.sorted()
         
-        // Sort ranks and handle Ace as both high and low
-        let sortedRanks = ranks.sorted()
-        
-        // Check for regular straight
-        var isRegularStraight = true
-        for i in 0...(sortedRanks.count - 2) {
-            if sortedRanks[i + 1] - sortedRanks[i] != 1 {
-                isRegularStraight = false
-                break
-            }
+        // Check if ranks are consecutive OR it's an Ace-low fragment
+        let isStandardConsecutive = (sortedRankValues[3] - sortedRankValues[0] == 3)
+        let isAceLow = uniqueRanks == Set([.ace, .two, .three, .four])
+        // Check Ace-high specifically (J-Q-K-A)
+        let isAceHigh = uniqueRanks == Set([.jack, .queen, .king, .ace])
+
+        if isStandardConsecutive || isAceLow || isAceHigh {
+            return true
         }
-        if isRegularStraight { return true }
-        
-        // Check for Ace-high straight (10,J,Q,K,A)
-        if ranks.contains(1) { // Ace
-            let aceHighRanks = ranks.map { $0 == 1 ? 14 : $0 }
-            let sortedAceHighRanks = aceHighRanks.sorted()
-            
-            var isAceHighStraight = true
-            for i in 0...(sortedAceHighRanks.count - 2) {
-                if sortedAceHighRanks[i + 1] - sortedAceHighRanks[i] != 1 {
-                    isAceHighStraight = false
-                    break
-                }
-            }
-            if isAceHighStraight { return true }
-            
-            // Check for Ace-bridge straight (Q,K,A,2)
-            let aceBridgeRanks = ranks.map { $0 == 1 ? 0 : $0 } // Convert Ace to 0 for bridge case
-            let sortedAceBridgeRanks = aceBridgeRanks.sorted()
-            
-            var isAceBridgeStraight = true
-            for i in 0...(sortedAceBridgeRanks.count - 2) {
-                if sortedAceBridgeRanks[i + 1] - sortedAceBridgeRanks[i] != 1 {
-                    isAceBridgeStraight = false
-                    break
-                }
-            }
-            if isAceBridgeStraight { return true }
-        }
-        
+
+        // Explicitly check for Ace-bridge wrap-around cases
+        // Q-K-A-2
+        if uniqueRanks == Set([.queen, .king, .ace, .two]) { return true }
+        // K-A-2-3
+        if uniqueRanks == Set([.king, .ace, .two, .three]) { return true }
+        // A-2-3-K
+        // if uniqueRanks == Set([.ace, .two, .three, .king]) { return true }
+        // A-J-Q-K
+        // if uniqueRanks == Set([.ace, .jack, .queen, .king]) { return true }
+
         return false
     }
     
     private static func isMiniStraight(cards: [Card]) -> Bool {
         guard cards.count == 3 else { return false }
-        let ranks = cards.map { $0.rank.rawValue }
+        let uniqueRanks = Set(cards.map { $0.rank })
+        guard uniqueRanks.count == 3 else { return false } // Must have 3 distinct ranks
+
+        let sortedRankValues = cards.map { $0.rank.rawValue }.sorted()
         
-        // Sort ranks and handle Ace as both high and low
-        let sortedRanks = ranks.sorted()
-        
-        // Check for regular straight
-        var isRegularStraight = true
-        for i in 0...(sortedRanks.count - 2) {
-            if sortedRanks[i + 1] - sortedRanks[i] != 1 {
-                isRegularStraight = false
-                break
-            }
+        // Check if ranks are consecutive OR it's an Ace-low fragment
+        let isStandardConsecutive = (sortedRankValues[2] - sortedRankValues[0] == 2)
+        let isAceLow = uniqueRanks == Set([.ace, .two, .three])
+        // Check Ace-high specifically (Q-K-A)
+        let isAceHigh = uniqueRanks == Set([.queen, .king, .ace])
+
+        if isStandardConsecutive || isAceLow || isAceHigh {
+            return true
         }
-        if isRegularStraight { return true }
-        
-        // Check for Ace-high straight (Q,K,A)
-        if ranks.contains(1) { // Ace
-            let aceHighRanks = ranks.map { $0 == 1 ? 14 : $0 }
-            let sortedAceHighRanks = aceHighRanks.sorted()
-            
-            var isAceHighStraight = true
-            for i in 0...(sortedAceHighRanks.count - 2) {
-                if sortedAceHighRanks[i + 1] - sortedAceHighRanks[i] != 1 {
-                    isAceHighStraight = false
-                    break
-                }
-            }
-            if isAceHighStraight { return true }
-            
-            // Check for Ace as bridge (K,A,2)
-            let aceBridgeRanks = ranks.map { $0 == 1 ? 0 : $0 } // Convert Ace to 0 for bridge case
-            let sortedAceBridgeRanks = aceBridgeRanks.sorted()
-            
-            var isAceBridgeStraight = true
-            for i in 0...(sortedAceBridgeRanks.count - 2) {
-                if sortedAceBridgeRanks[i + 1] - sortedAceBridgeRanks[i] != 1 {
-                    isAceBridgeStraight = false
-                    break
-                }
-            }
-            if isAceBridgeStraight { return true }
-        }
+
+        // Explicitly check for Ace-bridge wrap-around case (K-A-2)
+        if uniqueRanks == Set([.king, .ace, .two]) { return true }
+        // A-2-K
+        // if uniqueRanks == Set([.ace, .two, .king]) { return true }
         
         return false
     }
