@@ -71,8 +71,22 @@ private struct ConnectionGraph {
         if parent[nodeId] == nodeId {
             return nodeId
         }
-        parent[nodeId] = findRoot(of: parent[nodeId]!, in: &parent)
-        return parent[nodeId]!
+        // Safely unwrap parent[nodeId] before recursive call
+        guard let parentId = parent[nodeId] else {
+            // This case should theoretically not be reachable due to the initial guard
+            // and the nature of DSU initialization. Return nodeId as a safe fallback.
+            assertionFailure("findRoot: parent[nodeId] was unexpectedly nil before recursive call.") // Debug helper
+            return nodeId
+        }
+        parent[nodeId] = findRoot(of: parentId, in: &parent)
+
+        // Safely unwrap parent[nodeId] before returning
+        guard let updatedParentId = parent[nodeId] else {
+            // Should not happen if path compression worked correctly.
+            assertionFailure("findRoot: parent[nodeId] was unexpectedly nil after path compression.") // Debug helper
+            return nodeId // Fallback
+        }
+        return updatedParentId
     }
 
     private func union(_ x: UUID, _ y: UUID, in parent: inout [UUID: UUID], rank: inout [UUID: Int]) {
@@ -81,13 +95,15 @@ private struct ConnectionGraph {
 
         if xRoot == yRoot { return }
 
-        if rank[xRoot]! < rank[yRoot]! {
+        // Use nil-coalescing to safely access ranks
+        if (rank[xRoot] ?? 0) < (rank[yRoot] ?? 0) {
             parent[xRoot] = yRoot
-        } else if rank[xRoot]! > rank[yRoot]! {
+        } else if (rank[xRoot] ?? 0) > (rank[yRoot] ?? 0) {
             parent[yRoot] = xRoot
         } else {
             parent[yRoot] = xRoot
-            rank[xRoot]! += 1
+            // Use nil-coalescing to safely increment rank
+            rank[xRoot] = (rank[xRoot] ?? 0) + 1
         }
     }
 }
