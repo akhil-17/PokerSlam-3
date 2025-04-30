@@ -273,6 +273,8 @@ struct PokerHandDetector {
         if uniqueRanks == Set([.queen, .king, .ace, .two, .three]) { return true }
         // K-A-2-3-4
         if uniqueRanks == Set([.king, .ace, .two, .three, .four]) { return true }
+        // J-Q-K-A-2 <-- Added this case
+        if uniqueRanks == Set([.jack, .queen, .king, .ace, .two]) { return true }
         // A-2-3-4-K (Example of another possible wrap-around if needed)
         // if uniqueRanks == Set([.ace, .two, .three, .four, .king]) { return true }
         // A-2-J-Q-K (Example)

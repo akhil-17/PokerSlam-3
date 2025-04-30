@@ -17,7 +17,7 @@ enum Suit: String, CaseIterable, Hashable {
 }
 
 enum Rank: Int, CaseIterable, Hashable {
-    case ace = 1
+    case ace = 14
     case two = 2
     case three = 3
     case four = 4

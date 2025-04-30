@@ -72,6 +72,7 @@ struct ConnectionLinesLayer: View {
     }
 }
 
+#if DEBUG
 struct ConnectionLinesLayer_Previews: PreviewProvider {
     static var previews: some View {
         // Create dummy instances for preview
@@ -113,6 +114,7 @@ struct ConnectionLinesLayer_Previews: PreviewProvider {
         .background(Color.black) // Add background for visibility
     }
 }
+#endif
 
 // Define DummyHapticsManager for Preview - DO NOT INHERIT
 #if DEBUG
