@@ -13,11 +13,12 @@ PokerSlam is an engaging puzzle game where players create poker hands by selecti
 - Haptic feedback for interactions
 - High score tracking
 - Hand reference guide
-- Smooth animations and transitions
+- Smooth animations and transitions using SwiftUI's animation system and `Task.sleep` for coordination.
 - Modern, clean UI design with animated mesh gradient background
 - Falling ranks animation on the main menu background
 - Intelligent card adjacency rules
-- Dynamic card shifting and filling
+- **Corrected Dynamic Card Shifting:** Cards reliably shift down to fill empty spots, respecting the bottom rows first.
+- **Corrected New Card Dealing:** New cards correctly fill the grid from the bottom-up, especially when the deck is low.
 - Visual connection lines between selected cards
 - Animated line drawing for enhanced visual feedback
 - Optimized connection path finding for selected cards
@@ -26,37 +27,39 @@ PokerSlam is an engaging puzzle game where players create poker hands by selecti
 - Glyph-by-glyph text animation for key text elements (intro, game over, hand/score)
 - Sequential glyph animation for hand name and score
 - Continuous wave animation effect for specific text/icon elements (title, hand formation text)
-- Animated score updates (tally and gradient pulse) managed by `ScoreAnimator` service.
+- Animated score updates (tally and gradient pulse) managed by dedicated `ScoreAnimator` service.
 - Replayable glyph animation when text content changes
 - Shared success animation for "Play hand" and "Play again" buttons
 - Distinct haptic feedback for game reset
 - Simplified main menu (tap anywhere to start)
 - Enhanced game header with score display, exit button, and help button for Hand Reference access.
-- Updated HandReferenceView: Presented as an overlay with a top-right close button, custom fonts, mini card previews for examples, and a bottom fade gradient.
-- **Coordinated Card Animations:** Smooth, sequenced animations managed by `GameStateManager` for card removal (fade/scale out triggered, waits via `Task.sleep`), shifting (spring), and dealing new cards (spring).
+- Updated HandReferenceView: Presented as an interactive overlay with `.ultraThinMaterial` background, top-right close button, custom fonts, mini card previews for examples, and a bottom fade gradient.
+- **Coordinated Card Animations:** Precisely sequenced animations managed by `GameStateManager` for card removal (fade/scale out triggered, waits via `Task.sleep` for visual completion), shifting (spring animation driven by `currentRow` changes), and dealing new cards (spring animation, fills bottom-up).
 - Adaptive layout respecting device safe areas.
+- **Main Menu/Game Play States:** Clear separation managed by `GameView`.
 
 ### Game Rules
 - Cards must be adjacent to be selected
 - Adjacent means:
   - Same column, one row apart
-  - Adjacent columns, one row apart (with no empty columns between)
+  - Adjacent columns, one row apart (diagonal included)
 - Empty columns break adjacency
-- Cards shift down to fill empty positions
-- New cards are added from the top
-- Game ends when no valid hands can be formed with remaining cards
+- Cards shift down to fill empty positions completely before new cards appear.
+- New cards are dealt into the lowest available empty spots first.
+- Game ends when no valid, selectable hands can be formed with remaining cards on the grid or in the deck (if grid isn't full).
 - Connection lines visually link selected cards to show relationships
 - Hand detection prioritizes higher-ranking hands (e.g., straight flush over flush)
 
 ## 🎮 Technology Stack
 
 - **Framework**: SwiftUI
-- **Architecture**: MVVM (Model-View-ViewModel) with a dedicated Service layer
-- **State Management**: 
+- **Architecture**: MVVM (Model-View-ViewModel) with a dedicated Service layer (`GameStateManager`, `CardSelectionManager`, `ConnectionDrawingService`, `ScoreAnimator`, `HapticsManager`, `PokerHandDetector`).
+- **State Management**:
   - SwiftUI's built-in tools (`@State`, `@StateObject`, `@Published`)
   - `ObservableObject` protocol for ViewModels and Services
-  - Bindings for connecting UI and state
-  - Callbacks and Combine framework for service communication
+  - Direct data binding (`.assign(to:)` in Combine) from Service `@Published` properties to ViewModel `@Published` properties.
+  - Callbacks (e.g., `onNewCardsDealt`, `onSelectionChanged`) for signaling events and coordinating actions between ViewModel and Services.
+  - `async/await` with `Task.sleep` in `GameStateManager` for sequencing animations and data updates.
 - **Data Persistence**: UserDefaults for high scores
 - **Design Patterns**:
   - Protocol-oriented programming (e.g., `HapticsManaging` for testability)
@@ -78,17 +81,17 @@ PokerSlam/
 │   ├── GameView.swift     # Main game container (handles transitions between Main Menu and Game Play)
 │   ├── CardView.swift     # Individual card view
 │   ├── FallingRanksView.swift # Background animation for main menu
-│   ├── HandReferenceView.swift # Poker hand reference overlay
+│   ├── HandReferenceView.swift # Poker hand reference overlay content
 │   └── Components/        # Reusable UI components (Buttons, Gradients, Text Effects, etc.)
 ├── ViewModels/           # View models
 │   └── GameViewModel.swift # Orchestrates Services, exposes state for GameView
 ├── Models/               # Data models (Card, HandType, CardPosition, etc.)
 ├── Services/             # Core game logic and state managers
-│   ├── GameStateManager.swift # Manages deck, card positions, game state (game over), scoring
-│   ├── CardSelectionManager.swift # Handles card selection/deselection, eligibility, hand text
+│   ├── GameStateManager.swift # Manages deck, card positions, grid state, game logic (scoring, game over), animation coordination
+│   ├── CardSelectionManager.swift # Handles card selection/deselection, eligibility checks, hand text display, UI states (error/success)
 │   ├── ConnectionDrawingService.swift # Calculates connection lines based on selection
-│   ├── ScoreAnimator.swift # Manages score display animation logic
-│   ├── HapticsManager.swift # Centralizes haptic feedback generation
+│   ├── ScoreAnimator.swift    # Manages score display animation logic (tally, pulse)
+│   ├── HapticsManager.swift   # Centralizes haptic feedback generation
 │   └── PokerHandDetector.swift # Detects poker hands
 ├── Protocols.swift       # Shared protocols (e.g., HapticsManaging)
 ├── Extensions/          # Swift extensions
@@ -106,15 +109,15 @@ PokerSlam/
 
 ### MVVM Architecture with Service Layer
 - **Models**: Pure data structures representing game entities and state.
-- **Views**: SwiftUI views responsible for UI layout and presentation.
-- **ViewModels**: Orchestrates data flow between Views and Services. `GameViewModel` acts as the central coordinator for the main game screen, managing dependencies between services (often injected via protocols like `HapticsManaging`) and exposing combined state to the `GameView`.
-- **Services**: Encapsulate specific domains of game logic (e.g., `GameStateManager`, `CardSelectionManager`, `ScoreAnimator`, `HapticsManager`). They manage their own state and provide functionalities accessed by the ViewModel. Conform to protocols where necessary for dependency injection and testability.
+- **Views**: SwiftUI views responsible for UI layout and presentation. `GameView` acts as a container managing the `mainMenu` and `gamePlay` states.
+- **ViewModels**: Orchestrates data flow between Views and Services. `GameViewModel` centralizes dependencies, subscribes to service state updates (via Combine `.assign(to:)`), handles callbacks from services, and exposes curated state to `GameView`.
+- **Services**: Encapsulate specific domains of game logic (e.g., `GameStateManager`, `CardSelectionManager`, `ScoreAnimator`, `HapticsManager`). They manage their own state (`@Published`) and provide functionalities accessed by the ViewModel. `GameStateManager` uses `async/await` and `Task.sleep` to coordinate the visual sequence of removing, shifting, and dealing cards.
 
 ### State Management
 - **ViewModel State**: `GameViewModel` uses `@Published` properties to expose necessary state derived from underlying services to `GameView`.
-- **Service State**: Services like `GameStateManager`, `CardSelectionManager`, and `ScoreAnimator` manage their internal state using `@Published` properties.
-- **Bindings**: SwiftUI bindings connect UI elements to the ViewModel's published state.
-- **Callbacks & Combine**: Services use callbacks (e.g., `onNewCardsDealt` in `GameStateManager`) or Combine publishers to notify the `GameViewModel` of significant events or state changes, allowing the ViewModel to coordinate actions between services.
+- **Service State**: Services like `GameStateManager`, `CardSelectionManager`, `ScoreAnimator` manage their internal state using `@Published` properties, directly reflecting the source of truth for their domain.
+- **Bindings**: SwiftUI bindings connect UI elements (like `CardView`, score display) directly to the `GameViewModel`'s published state.
+- **Callbacks & Combine**: Services use callbacks (e.g., `onNewCardsDealt`, `onGameOverChecked`, `onSelectionChanged`) to notify `GameViewModel` of key events. ViewModel uses Combine's `.assign(to:)` to directly bind its state to the relevant service's state.
 
 ### Design Principles
 - Protocol-oriented programming (using protocols like `HapticsManaging`)
@@ -123,7 +126,7 @@ PokerSlam/
 - Reactive programming with SwiftUI
 - Haptic feedback for enhanced UX
 - Visual feedback through connection lines
-- Advanced animation system with position-based transitions
+- Advanced animation system leveraging SwiftUI's `.animation` modifiers and `async/await` with `Task.sleep` for coordination.
 
 ## 🚀 Getting Started
 
@@ -158,10 +161,10 @@ PokerSlam/
 - Responsive button visibility management
 - Smooth entrance and exit transitions for action buttons
 - Smooth crossfade transition for HandReferenceView overlay
-- **Score Animation**: Managed by `ScoreAnimator` service, providing a tally effect and a gradient pulse on score updates.
+- **Score Animation**: Dedicated `ScoreAnimator` service provides a smooth tally effect for score increments and a visual pulse animation on the score value itself.
 - Specific haptic feedback for game reset action
 - Simplified main menu: Tap anywhere to start the game
-- **Updated Game Header:** Displays current score (with animated tally updates and gradient pulse for new high scores, driven by `ScoreAnimator`), provides an exit button (`X`) to return to the main menu, and a help button (`?`) to access the Hand Reference view.
+- **Updated Game Header:** Displays current score (driven by `ScoreAnimator`), provides an exit button (`X`) to return to the main menu, and a help button (`?`) to toggle the `HandReferenceView` overlay.
 - **Updated HandReferenceView:**
     - Presented as a modal overlay within the `GameView` using an `.ultraThinMaterial` background and a smooth opacity transition.
     - Features a dedicated header with a close button (`X`) using `CircularIconButton`.
@@ -169,8 +172,14 @@ PokerSlam/
     - Includes mini card previews (`CardView(style: .mini)`) within each `HandReferenceRow` to visually represent example hands.
     - Implements a bottom fade gradient overlay for a polished look.
     - Contains `SectionHeader` and `HandReferenceRow` sub-components for structured content presentation.
-- **Coordinated Card Animations:** Smooth, sequenced animations managed by `GameStateManager` for card removal (fade/scale out triggered, waits via `Task.sleep`), shifting (spring), and dealing new cards (spring).
-- **Button Feedback:** Error wiggle animation restored for invalid hand attempts on the "Play hand" button.
+- **Coordinated Card Animations:** Precisely sequenced and reliable animations managed by `GameStateManager`'s `removeCardsAndShiftAndDeal` function:
+    1. Removal animation triggered (scale/fade out).
+    2. `Task.sleep` waits for removal animation duration.
+    3. Card data removed from `cardPositions`.
+    4. Shift animation triggered (spring via `currentRow` change in `CardGridView`).
+    5. `Task.sleep` waits for shift animation duration.
+    6. New cards dealt (spring animation, filling bottom-up correctly).
+- **Button Feedback:** Error wiggle animation on the "Play hand" button for invalid attempts.
 
 ## 🔧 Technical Implementation
 
@@ -203,14 +212,14 @@ PokerSlam/
 
 ### Haptic Feedback System
 - Centralized in `HapticsManager` (conforming to `HapticsManaging` protocol).
-- Provides distinct feedback for selection, deselection, success, error, reset, card shifts, and new card deals.
+- Provides distinct feedback for selection, deselection, success (`playSuccessNotification`), error (`playErrorNotification`), reset (`playResetNotification`), card shifts (`playShiftImpact`), and new card deals (`playNewCardImpact`).
 - Injected into relevant services/viewModels using the `HapticsManaging` protocol.
 
 ### Performance Optimizations
-- Efficient card position tracking
-- Optimized hand recognition algorithms
-- Smooth animations using SwiftUI
-- Memory-efficient data structures
+- Efficient card position tracking using `[CardPosition]`.
+- Optimized hand recognition algorithms.
+- Smooth animations using SwiftUI's declarative system and coordinated via `GameStateManager`.
+- Memory-efficient data structures (structs for Models).
 - SIMD2 for efficient vector operations
 
 ## 📱 Requirements
