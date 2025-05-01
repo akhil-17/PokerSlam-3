@@ -275,20 +275,45 @@ public struct FallingRankSymbolEffectModifier: ViewModifier {
 
 /// A modifier that applies a pulsing animation to any view
 struct PulsingAnimationModifier: ViewModifier {
-    @State private var isPulsing = false
-    
+    let isActive: Bool
+    @State private var readyToPulse = false // Internal state to delay start
+
     func body(content: Content) -> some View {
+        let shouldPulse = isActive && readyToPulse
         content
-            .scaleEffect(isPulsing ? 1.2 : 1.0)
+            .scaleEffect(shouldPulse ? 1.2 : 1.0)
             .animation(
-                Animation.easeInOut(duration: 0.5)
-                    .repeatForever(autoreverses: true),
-                value: isPulsing
+                shouldPulse ?
+                    Animation.easeInOut(duration: 0.5).repeatForever(autoreverses: true)
+                    : .default,
+                value: shouldPulse // Animate based on the combined state
             )
             .onAppear {
-                // Add a slight delay before starting the animation
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                    isPulsing = true
+                // Reset internal state on appear
+                readyToPulse = false
+                // If active, schedule the pulse start after a delay
+                if isActive {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                        // Check isActive again in case it changed during the delay
+                        if isActive {
+                            readyToPulse = true
+                        }
+                    }
+                }
+            }
+            .onChange(of: isActive) { _, newValue in
+                if !newValue {
+                    // Reset if becomes inactive
+                    readyToPulse = false
+                } else {
+                    // If it becomes active later, trigger the pulse after delay
+                    // (This might handle cases where the button appears inactive then becomes active)
+                    readyToPulse = false // Ensure reset before scheduling
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                         if isActive { // Check again
+                             readyToPulse = true
+                         }
+                    }
                 }
             }
     }
@@ -682,30 +707,35 @@ struct PrimaryButton: View {
                 // Text with mesh gradient effect and sequential animation
                 ButtonTextLabel(text: title, isWaveAnimating: isWaveAnimating)
                     .transition(TextTransition())
-                    .offset(y: isVisible ? 0 : textOffset)
-                    .opacity(isVisible ? 1 : 0)
-                    .blur(radius: isVisible ? 0 : 5)
-                    .offset(x: isWiggling ? 5 : 0)
-                    .animation(
-                        Animation.easeInOut(duration: 0.1)
-                            .repeatCount(3, autoreverses: true),
-                        value: isWiggling
-                    )
+                    // Remove entrance/wiggle modifiers from ButtonTextLabel
+                    // .offset(y: isVisible ? 0 : textOffset)
+                    // .opacity(isVisible ? 1 : 0)
+                    // .blur(radius: isVisible ? 0 : 5)
+                    // .animation(.spring(response: 0.4, dampingFraction: 0.7, blendDuration: 0.3), value: isVisible)
+                    // .offset(x: isWiggling ? 5 : 0)
+                    // .animation(
+                    //     Animation.easeInOut(duration: 0.1)
+                    //         .repeatCount(3, autoreverses: true),
+                    //     value: isWiggling
+                    // )
                 
                 if let icon = icon {
-                    // Icon with mesh gradient effect
-                    ButtonIconLabel(systemName: icon, isAnimated: isWaveAnimating)
-                        .offset(y: isVisible ? 0 : textOffset)
-                        .opacity(isVisible ? 1 : 0)
-                        .blur(radius: isVisible ? 0 : 5)
-                        .offset(x: isWiggling ? 5 : 0)
-                        .animation(
-                            Animation.easeInOut(duration: 0.1)
-                                .repeatCount(3, autoreverses: true),
-                            value: isWiggling
-                        )
+                    // Icon with mesh gradient effect - NO entrance/wiggle modifiers
+                    ButtonIconLabel(systemName: icon, isAnimated: self.isAnimated)
                 }
             }
+            // Apply entrance/wiggle modifiers to the HStack
+            .offset(y: isVisible ? 0 : textOffset)
+            .opacity(isVisible ? 1 : 0)
+            .blur(radius: isVisible ? 0 : 5)
+            // Add animation for entrance tied to isVisible
+            .animation(.spring(response: 0.4, dampingFraction: 0.7, blendDuration: 0.3), value: isVisible)
+            .offset(x: isWiggling ? 5 : 0)
+            .animation(
+                Animation.easeInOut(duration: 0.1)
+                    .repeatCount(3, autoreverses: true),
+                value: isWiggling
+            )
             .foregroundColor(.white)
             .frame(maxWidth: .infinity, minHeight: 60)
             .padding(.vertical, 4)
@@ -735,8 +765,6 @@ struct PrimaryButton: View {
                             .blur(radius: 1)
                             .blendMode(.multiply)
                     )
-                    // Add the inner yellow glow here, within the first background layer
-                    
             )
             .background(Color(hex: "#0D092B"))
             .cornerRadius(40)
@@ -793,6 +821,9 @@ struct PrimaryButton: View {
         guard waveLoopTask == nil, initialAppearanceComplete else { return }
         
         waveLoopTask = Task { @MainActor in
+            // Set state just before the loop starts
+            isWaveAnimating = true
+            
             // Loop keeps running as long as the button is visible and not cancelled
             while initialAppearanceComplete && !Task.isCancelled {
                 do {
@@ -1022,9 +1053,7 @@ struct ButtonIconLabel: View {
                 Image(systemName: systemName)
                     .font(.system(size: 16))
             )
-            .if(isAnimated) { view in
-                view.modifier(PulsingAnimationModifier())
-            }
+            .modifier(PulsingAnimationModifier(isActive: isAnimated))
     }
     
     // Base positions for the mesh gradient
@@ -1108,9 +1137,7 @@ struct GradientText<Content: View>: View {
             .if(applyShadow) { view in
                 view.shadow(color: .black.opacity(0.5), radius: 2, x: 0, y: 1)
             }
-            .if(isAnimated) { view in
-                view.modifier(PulsingAnimationModifier())
-            }
+            .modifier(PulsingAnimationModifier(isActive: isAnimated))
     }
     
     // Base positions for the mesh gradient

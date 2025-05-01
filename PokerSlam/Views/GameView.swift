@@ -500,10 +500,6 @@ private struct CardGridView: View {
                                         }
                                     }
                                 )
-                                .offset(
-                                    x: CGFloat(cardPosition.currentCol - cardPosition.targetCol) * 68,
-                                    y: CGFloat(cardPosition.currentRow - cardPosition.targetRow) * 102
-                                )
                                 .scaleEffect(cardPosition.isBeingRemoved ? 0.1 : 1.0)
                                 .opacity(cardPosition.isBeingRemoved ? 0 : 1)
                                 .animation(.spring(response: AnimationConstants.cardShiftSpringResponse, dampingFraction: AnimationConstants.cardShiftSpringDamping), value: cardPosition.currentRow)

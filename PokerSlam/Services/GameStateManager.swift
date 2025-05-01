@@ -287,8 +287,14 @@ final class GameStateManager: ObservableObject {
              }
          }
          
-         // Sort empty positions to fill top rows first, then left-to-right
-         finalEmptyPositions.sort { ($0.0, $0.1) < ($1.0, $1.1) }
+         // Sort empty positions to fill **bottom-most rows first**, then left-to-right
+         finalEmptyPositions.sort { 
+             if $0.0 != $1.0 { // If rows are different
+                 return $0.0 > $1.0 // Sort descending by row (higher row index first)
+             } else { // If rows are the same
+                 return $0.1 < $1.1 // Sort ascending by column (leftmost first)
+             }
+         }
          
         // --- End original logic adaptation ---
 
