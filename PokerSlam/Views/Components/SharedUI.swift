@@ -1276,8 +1276,8 @@ struct AnimationPreview: View {
                         .foregroundColor(.white)
                     
                     PrimaryButton(
-                        title: "Invalid hand",
-                        icon: "xmark",
+                        title: "Play hand",
+                        icon: "play.fill",
                         isAnimated: true,
                         isErrorState: isErrorState,
                         errorAnimationTimestamp: errorAnimationTimestamp,
