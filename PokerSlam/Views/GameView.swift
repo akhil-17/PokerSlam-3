@@ -67,16 +67,15 @@ struct GameView: View {
 
     /// Content view for the Main Menu state
     private var mainMenuContent: some View {
-        ZStack {
-            // Add the falling ranks animation behind everything
+        ZStack { // This is MenuZStack
+            // Layer 1: Background Animation
             FallingRanksView()
                 .blendMode(.multiply)
             
-            // VStack to center the title
+            // Layer 2: Centered Title
             VStack {
                 Spacer()
                 GradientText(font: .gameTitle, applyShadow: false) {
-                    // Pass wave state directly to GlyphAnimatedText
                     GlyphAnimatedText(text: "Poker Slam", isWaveAnimating: isTitleWaveAnimating)
                 }
                 .blendMode(.colorDodge)
@@ -85,14 +84,38 @@ struct GameView: View {
             }
             .padding() // Add padding if needed around the title
             
-            // VStack to position "tap to start" at the bottom
+            // Layer 3: "Tap to start" at the bottom
             VStack {
                 Spacer() // Pushes the text down
                 Text("tap to start")
                     .modifier(IntroMessageTextStyle()) // Apply the custom modifier
                     .padding(.bottom, 60) // Adjust padding from bottom as needed
             }
+            
+            // Layer 4: High Score display at the top
+            if gameState.currentScore > 0 { // RESTORED: Only show if high score > 0
+                VStack { // This VStack is the direct content of the overlay
+                    HStack { // HStack for the ScoreDisplayView and horizontal centering
+                        Spacer()
+                        ScoreDisplayView(
+                            label: "High score",
+                            score: gameState.currentScore,
+                            isAnimatingScoreValue: false, // Static display for main menu
+                            showBackgroundBlur: false // Hide blur for main menu high score
+                        )
+                        .frame(height: 50) // DEBUG: Constrain ScoreDisplayView height
+                        Spacer()
+                    }
+                    .padding(.top, 55)  // Adjusted fixed padding
+                    .padding(.top, 20)  // The specific 20pt additional offset
+                    
+                    Spacer() // Pushes the HStack to the top of this VStack (which is in the overlay)
+                }
+                .transition(.opacity) // Fade in/out
+            }
         }
+        .ignoresSafeArea() // Ensure MenuZStack also ignores safe areas, aligning its frame with its parent
+        .frame(maxWidth: .infinity, maxHeight: .infinity) // Force this ZStack to expand to fill available space
         .contentShape(Rectangle()) // Make the entire area tappable
         .onTapGesture {
             // Stop title animation when leaving menu
@@ -155,7 +178,13 @@ struct GameView: View {
             
             Spacer()
             
-            scoreDisplay
+            // Use the new ScoreDisplayView
+            ScoreDisplayView(
+                label: viewModel.score > gameState.currentScore ? "New high score" : "Score",
+                score: viewModel.displayedScore,
+                isAnimatingScoreValue: viewModel.isScoreAnimating,
+                showBackgroundBlur: true // Show blur for in-game score
+            )
             
             Spacer()
             
@@ -167,77 +196,6 @@ struct GameView: View {
         .padding(.top, 20)
     }
     
-    /// Score display component for the header
-    private var scoreDisplay: some View {
-        VStack(spacing: -4) {
-            ZStack {
-                Rectangle()
-                    .fill(.ultraThinMaterial)
-                    .blur(radius: 40)
-                    .mask(
-                        RadialGradient(
-                            gradient: Gradient(colors: [Color.white.opacity(1.0), Color.white.opacity(0.0)]),
-                            center: .center,
-                            startRadius: 5,
-                            endRadius: 30
-                        )
-                    )
-                    .cornerRadius(12)
-                    .padding(-8)
-
-                VStack(spacing: -4) {
-                    // Score Label (with gradient animation)
-                    ZStack {
-                        // Determine the text content
-                        let scoreLabelText = viewModel.score > gameState.currentScore ? "New high score" : "Score"
-                        
-                        // Single Text view for the label
-                        Text(scoreLabelText)
-                            .textCase(.uppercase)
-                            .tracking(1)
-                            .font(.scoreLabel)
-                            .foregroundStyle(Color(hex: "#999999")) // Keep base color or make dynamic?
-                        
-                        // Optional: Apply gradient overlay if needed, simplified
-                        // Text(scoreLabelText)
-                        //     .textCase(.uppercase)
-                        //     .tracking(1)
-                        //     .font(.scoreLabel)
-                        //     .foregroundStyle(.clear)
-                        //     .background { MeshGradientBackground2() }
-                        //     .mask {
-                        //         Text(scoreLabelText)
-                        //             .textCase(.uppercase)
-                        //             .tracking(1)
-                        //             .font(.scoreLabel)
-                        //     }
-                    }
-                    .id("scoreLabel_" + (viewModel.score > gameState.currentScore ? "high" : "normal")) // Use ID for transition
-                    .transition(.opacity.animation(.easeInOut(duration: 0.2))) // Apply crossfade transition
-                    
-                    // Score Value (with gradient animation)
-                    ZStack {
-                        Text("\(viewModel.displayedScore)")
-                            .font(.scoreValue)
-                            .foregroundColor(Color(hex: "#999999"))
-                            .blendMode(.colorDodge)
-                            .opacity(viewModel.isScoreAnimating ? 0 : 1)
-
-                        Text("\(viewModel.displayedScore)")
-                            .font(.scoreValue)
-                            .foregroundStyle(.clear)
-                            .background { MeshGradientBackground2() }
-                            .mask {
-                                Text("\(viewModel.displayedScore)")
-                                    .font(.scoreValue)
-                            }
-                            .opacity(viewModel.isScoreAnimating ? 1 : 0)
-                    }
-                }
-            }
-        }
-    }
-
     /// Main content section for the game play view (Hand Text, Grid, Buttons)
     private var gameMainContent: some View {
         VStack(spacing: 0) {
@@ -864,6 +822,84 @@ struct PlayHandButtonContainer: View {
             } else {
                 Color.clear
                     .frame(height: 76)
+            }
+        }
+    }
+}
+
+// MARK: - Reusable Score Display View
+private struct ScoreDisplayView: View {
+    let label: String
+    let score: Int
+    let isAnimatingScoreValue: Bool
+    let showBackgroundBlur: Bool // New parameter
+
+    var body: some View {
+        VStack(spacing: -4) {
+            ZStack {
+                if showBackgroundBlur { // Conditionally show the rectangle
+                    Rectangle()
+                        .fill(.ultraThinMaterial)
+                        .blur(radius: 40)
+                        .mask(
+                            RadialGradient(
+                                gradient: Gradient(colors: [Color.white.opacity(1.0), Color.white.opacity(0.0)]),
+                                center: .center,
+                                startRadius: 5,
+                                endRadius: 30
+                            )
+                        )
+                        .cornerRadius(12)
+                        .padding(-8)
+                }
+
+                VStack(spacing: -4) {
+                    // Score Label
+                    ZStack {
+                        Text(label)
+                            .textCase(.uppercase)
+                            .tracking(1)
+                            .font(.scoreLabel)
+                            .foregroundStyle(Color(hex: "#999999"))
+                        
+                        // Optional: Gradient overlay for label if ever needed (currently not used actively for label in game)
+                        // Text(label)
+                        //     .textCase(.uppercase)
+                        //     .tracking(1)
+                        //     .font(.scoreLabel)
+                        //     .foregroundStyle(.clear)
+                        //     .background { MeshGradientBackground2() } // Assuming MeshGradientBackground2 is accessible or defined
+                        //     .mask {
+                        //         Text(label)
+                        //             .textCase(.uppercase)
+                        //             .tracking(1)
+                        //             .font(.scoreLabel)
+                        //     }
+                    }
+                    .id("scoreLabel_" + label.filter { !$0.isWhitespace }) // Use ID for transition, make it robust for labels with spaces
+                    .transition(.opacity.animation(.easeInOut(duration: 0.2)))
+                    
+                    // Score Value (with gradient animation)
+                    ZStack {
+                        Text("\(score)")
+                            .font(.scoreValue)
+                            .foregroundColor(Color(hex: "#999999"))
+                            .blendMode(.colorDodge)
+                            .opacity(isAnimatingScoreValue ? 0 : 1) // Non-animated visible when isAnimatingScoreValue is false
+
+                        Text("\(score)")
+                            .font(.scoreValue)
+                            .foregroundStyle(.clear)
+                            .background { MeshGradientBackground2() } // Assuming this is defined elsewhere
+                            .mask {
+                                Text("\(score)")
+                                    .font(.scoreValue)
+                            }
+                            .fixedSize(horizontal: false, vertical: true) // Constrain vertical size
+                            .opacity(isAnimatingScoreValue ? 1 : 0) // Animated visible when isAnimatingScoreValue is true
+                            .allowsHitTesting(isAnimatingScoreValue) // Only allow hit testing when visible
+                    }
+                }
             }
         }
     }

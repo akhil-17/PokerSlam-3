@@ -63,15 +63,18 @@
 - **Role**: Container view managing transitions between Main Menu (`mainMenuContent`) and Game Play (`gamePlayContent`) states using `currentViewState`.
 - **State**: Manages `currentViewState`, `showingHandReference`, `isTitleWaveAnimating`. Uses `@StateObject` for `GameViewModel`.
 - **Orchestration**: Initializes `GameViewModel`, handles state transitions, toggles `HandReferenceView` overlay.
-// ... existing code ...
-- **Animation**: Score value pulses using opacity changes based on `viewModel.isScoreAnimating` (driven by `ScoreAnimator`). New high score label fades in/out using `.id()`/`.transition`.
-- **Data**: Binds to `viewModel.displayedScore` for the animated value. Reads `viewModel.score` and `gameState.currentScore` to determine the label text.
+
+#### ScoreDisplay (Refactored to `ScoreDisplayView` struct)
+- **Role**: Renders the score label (e.g., "Score", "New high score", "High score") and the animated/static score value. Used in both `gameHeader` and `mainMenuContent`.
+- **Parameters**: `label: String`, `score: Int`, `isAnimatingScoreValue: Bool`, `showBackgroundBlur: Bool`.
+- **Features**: Conditionally displays a blurred background rectangle. Uses opacity toggling for animated vs. non-animated score text, with the animated path using `MeshGradientBackground2` and the non-animated path using `.colorDodge`. The animated text path has `.fixedSize(horizontal: false, vertical: true)` to prevent vertical greediness.
+- **Animation**: Score value can pulse (driven by `isAnimatingScoreValue`). Label can cross-fade using `.id()`/`.transition`.
+- **Data**: Binds to score values. Label text is passed in. `showBackgroundBlur` controls the visibility of its internal blurred rectangle background.
 
 #### CardGridView
 - **Role**: Displays the 5x5 grid of `CardView`s within a `LazyVStack` and `LazyHStack`. Handles tap gestures for deselecting cards.
 - **Layout & Animation**: Relies on the `Lazy*Stack` structure and the `CardPosition` data provided by `GameViewModel`. Card shifting animation is driven *solely* by changes to `cardPosition.currentRow`/`cardPosition.currentCol` paired with the `.animation(.spring..., value: ...)` modifiers on the `CardView`. The `.offset` modifier was removed. Removal animation is triggered by `cardPosition.isBeingRemoved`.
 - **Data**: Iterates over `viewModel.cardPositions`. Uses `GeometryReader` to track card frames for `ConnectionLinesLayer`.
-// ... existing code ...
 
 // Card Shifting Animation (driven by changes in CardPosition.currentRow/Col)
 .animation(.spring(response: AnimationConstants.cardShiftSpringResponse, dampingFraction: AnimationConstants.cardShiftSpringDamping), value: cardPosition.currentRow)

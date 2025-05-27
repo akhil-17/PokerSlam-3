@@ -37,6 +37,7 @@ PokerSlam is an engaging puzzle game where players create poker hands by selecti
 - **Coordinated Card Animations:** Precisely sequenced animations managed by `GameStateManager` for card removal (fade/scale out triggered, waits via `Task.sleep` for visual completion), shifting (spring animation driven by `currentRow` changes), and dealing new cards (spring animation, fills bottom-up).
 - Adaptive layout respecting device safe areas.
 - **Main Menu/Game Play States:** Clear separation managed by `GameView`.
+- **High Score Display on Main Menu:** User's current high score is displayed at the top of the main menu if it's greater than zero, styled similarly to the in-game score.
 
 ### Game Rules
 - Cards must be adjacent to be selected
@@ -165,6 +166,7 @@ PokerSlam/
 - Specific haptic feedback for game reset action
 - Simplified main menu: Tap anywhere to start the game
 - **Updated Game Header:** Displays current score (driven by `ScoreAnimator`), provides an exit button (`X`) to return to the main menu, and a help button (`?`) to toggle the `HandReferenceView` overlay.
+- **High Score on Main Menu:** The user's highest score is displayed at the top of the main menu (if greater than 0), using a refactored `ScoreDisplayView` component. Its background blur is disabled for a cleaner look on the menu.
 - **Updated HandReferenceView:**
     - Presented as a modal overlay within the `GameView` using an `.ultraThinMaterial` background and a smooth opacity transition.
     - Features a dedicated header with a close button (`X`) using `CircularIconButton`.
