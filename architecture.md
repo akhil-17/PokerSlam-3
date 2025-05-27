@@ -39,30 +39,12 @@ graph LR
 5.  **Callbacks (Service -> ViewModel)**: Services use callbacks (e.g., `onNewCardsDealt`, `onGameOverChecked` from `GameStateManager`, `onSelectionChanged` from `CardSelectionManager`) to signal completion of asynchronous tasks or significant events. `GameViewModel` implements these callbacks to trigger subsequent actions in other services (e.g., `onSelectionChanged` triggers `connectionDrawingService.updateConnections`).
 6.  **State Publishing (ViewModel -> View)**: `GameViewModel` publishes the combined/relevant state to `GameView`.
 7.  **UI Update**: `GameView` observes the ViewModel's `@Published` properties and automatically re-renders relevant parts of the UI.
-// ... existing code ...
-### Service Layer Components
+    *   `GameView` also directly observes `GameState.currentScore` (EnvironmentObject) to conditionally display the high score on the main menu using the `ScoreDisplayView` component.
 
-### GameStateManager
-- **Purpose**: Central manager for the core game state, including the deck, grid layout, scoring, and game over conditions.
-- **State Managed**: `deck`, `cardPositions: [CardPosition]`, `score: Int`, `isGameOver: Bool`, `lastPlayedHand: HandType?`, `hasUserInteractedThisGame: Bool`.
-- **Key Functions**: `setupDeck`, `dealInitialCards`, `removeCardsAndShiftAndDeal` (critical async function orchestrating the sequenced animation: trigger removal animation -> **await Task.sleep** -> update `cardPositions` data -> trigger shift animation -> **await Task.sleep** -> trigger deal animation), `shiftCardsDown`, `dealNewCardsToFillGrid` (fills empty spots bottom-up), `checkGameOver`, `canSelectCards`, `resetState`.
-- **Communication**: Publishes state changes (`@Published` bound by ViewModel), provides callbacks (`onNewCardsDealt`, `onGameOverChecked`).
-- **Dependencies:** Injected with `HapticsManaging`.
-// ... existing code ...
-- **Key Functions**: `selectCard`, `unselectAllCards`, `updateEligibleCards`, `updateCurrentHandText`, state setters/resetters (`setErrorState`, `setSuccessState`, `resetErrorState`, `resetSuccessState`, `reset`).
-- **Communication**: Publishes state changes (`@Published`), provides callback (`onSelectionChanged`). Depends on `GameStateManager` for position data and adjacency checks.
-- **Dependencies:** Injected with `GameStateManager`, `HapticsManaging`.
+## Data Flow (Example: Playing a Hand)
 
-### ConnectionDrawingService
-- **Purpose**: Calculates the visual connection paths between selected cards.
+1.  `GameView` (specifically a button in `PlayHandButtonContainer`) calls `viewModel.playHand()`. 
 // ... existing code ...
-- **Dependencies:** Injected with `GameStateManager`, `CardSelectionManager`.
-
-### ScoreAnimator
-- **Purpose**: Handles the visual animation of the score updating in the UI, providing a tally effect and a visual pulse.
-- **State Managed**: `displayedScore: Int` (the value shown in UI), `isScoreAnimating: Bool` (controls pulse animation).
-- **Key Functions**: `updateScore(newScore: Int)` (starts tally animation towards `newScore`), `resetScoreDisplay()`. Uses internal timer for tally animation.
-- **Communication**: Publishes `displayedScore` and `isScoreAnimating` (`@Published`, bound by `GameViewModel`).
 - **Dependencies:** None.
 
 ### HapticsManager
@@ -71,6 +53,8 @@ graph LR
 - **Role**: Renders the score label ("Score" or "New high score") and the animated score value.
 - **Animation**: Score value pulses using opacity changes bound to `viewModel.isScoreAnimating` (driven by `ScoreAnimator`). The "New high score" label cross-fades using `.id()` and `.transition()`.
 - **Data**: Binds to `viewModel.displayedScore` (sourced from `ScoreAnimator` via `GameViewModel`). Reads `viewModel.score` (from `GameStateManager` via VM) and `gameState.currentScore` (from EnvironmentObject) to determine the label text.
+
+(Note: The above "Score Display" section describes the functionality now encapsulated in the reusable `ScoreDisplayView` struct, which is used by `GameView` for both the in-game score header and the main menu high score display.)
 
 #### CardGridView
 - **Role**: Displays the 5x5 grid of `CardView`s using `LazyVStack`/`LazyHStack`. Manages deselection taps.
